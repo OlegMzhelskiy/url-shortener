@@ -29,7 +29,7 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		shortURL := addToCollection(string(body))
 		w.WriteHeader(http.StatusCreated) //201
-		w.Write([]byte(host + "/" + shortURL))
+		w.Write([]byte("http://" + host + "/" + shortURL))
 	} else if r.Method == http.MethodGet {
 		fmt.Printf("Получен запрос GET %s\n", r.RequestURI)
 		//id := r.URL.Query().Get("id")
@@ -40,13 +40,18 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		longURL, err := getURLByID(id)
 		if err != nil {
-			w.Write([]byte(err.Error()))
+			http.Error(w, err.Error(), http.StatusNotFound)
+			//w.Write([]byte(err.Error()))
 			return
 		}
-		w.Header().Add("Location", longURL)
+		//w.Header().Add("Location", longURL)
+		w.Header().Set("Location", longURL)
 		w.WriteHeader(http.StatusTemporaryRedirect) //307
+	} else {
+		//http.NotFoundHandler()
+		http.Error(w, "Requests not allowed!", http.StatusMethodNotAllowed)
+		return
 	}
-	http.NotFoundHandler()
 }
 
 func addToCollection(longURL string) string {
