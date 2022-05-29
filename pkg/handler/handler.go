@@ -26,6 +26,7 @@ func (h *Handler) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		shortURL, err := storage.AddToCollection(h.storage, string(body))
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		w.WriteHeader(http.StatusCreated) //201
 		w.Write([]byte("http://" + h.host + "/" + shortURL))
 	} else if r.Method == http.MethodGet {
@@ -43,6 +44,7 @@ func (h *Handler) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//w.Header().Add("Location", longURL)
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		w.Header().Set("Location", longURL)
 		w.WriteHeader(http.StatusTemporaryRedirect) //307
 	} else {
