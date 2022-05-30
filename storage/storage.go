@@ -9,6 +9,7 @@ import (
 type Storager interface {
 	SaveLink(shortLink, longLink string) error
 	GetByID(string) (string, error)
+	GetAll() map[string]string
 }
 
 type MemoryRep struct {
@@ -19,6 +20,10 @@ func NewMemoryRep() *MemoryRep {
 	return &MemoryRep{
 		db: make(map[string]string),
 	}
+}
+
+func (m MemoryRep) GetAll() map[string]string {
+	return m.db
 }
 
 func (m MemoryRep) SaveLink(shortURL, longURL string) error {
