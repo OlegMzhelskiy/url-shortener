@@ -116,7 +116,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 			want: response{
 				code:    200,
 				body:    "{\"bhgaedbedj\":\"https://zen.yandex.ru/media/1fx_online/advcash-chto-eto-takoe-i-dlia-kogo-dlia-chego-nujen-etot-elektronnyi-koshelek-6061c1d814931c44e89c923b\"}",
-				headers: map[string]string{"Content-Type": "application/json"},
+				headers: map[string]string{"Content-Type": "application/json; charset=utf-8"},
 			},
 			args: args{
 				http.MethodGet,
@@ -129,7 +129,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 	strg := storage.NewMemoryRep()
 
 	h := NewHandler(strg, "localhost:8080")
-	handl := h.Init()
+	serv := h.New()
 
 	//ts := httptest.NewServer(handl)
 	//defer ts.Close()
@@ -146,7 +146,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 			////handl := h.Init()
 			//
 			//// запускаем сервер
-			handl.ServeHTTP(w, request)
+			serv.ServeHTTP(w, request)
 			//res := w.Result()
 
 			//res, body := testRequest(t, ts, tt.args.method, tt.args.url, tt.args.body)
@@ -170,13 +170,13 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 			//assert.Equal(t, tt.want.body, string(body))
 			assert.Equal(t, tt.want.body, w.Body.String())
 
-			//// заголовки ответа
-			//for key, value := range tt.want.headers {
-			//	assert.Equal(t, value, res.Header.Get(key))
-			//	//if res.Header.Get(key) != value {
-			//	//	t.Errorf("Expected haeder '%s' %s, got %s", key, value, res.Header.Get(key))
-			//	//}
-			//}
+			// заголовки ответа
+			for key, value := range tt.want.headers {
+				assert.Equal(t, value, w.Header().Get(key))
+				//if res.Header.Get(key) != value {
+				//	t.Errorf("Expected haeder '%s' %s, got %s", key, value, res.Header.Get(key))
+				//}
+			}
 		})
 	}
 }

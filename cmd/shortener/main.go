@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"url-shortener/cmd/server"
 	"url-shortener/pkg/handler"
 	"url-shortener/storage"
 )
@@ -12,10 +11,10 @@ var host = "localhost:8080"
 func main() {
 	strg := storage.NewMemoryRep()
 	handl := handler.NewHandler(strg, host)
+	router := handl.New()
 
-	//http.HandleFunc("/", handl.ShortenerHandler)
-	//log.Fatal(http.ListenAndServe(host, nil))
+	//serv := new(server.Server) //нужна ли мне вообще структура Server?
+	//log.Fatal(serv.Run("8080", router))
 
-	serv := new(server.Server)
-	log.Fatal(serv.Run("8080", handl.Init()))
+	log.Fatal(router.Run(host))
 }
