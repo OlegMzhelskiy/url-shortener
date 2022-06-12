@@ -47,6 +47,19 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 				host,
 			},
 		},
+		{name: "POST Empty Body",
+			want: response{
+				code: 400,
+				body: "The query must contain a link\n",
+				//contentType: "application/json",
+				headers: map[string]string{},
+			},
+			args: args{
+				http.MethodPost,
+				bytes.NewBuffer([]byte("")),
+				host,
+			},
+		},
 		{name: "GET",
 			want: response{
 				code: 307,
@@ -97,19 +110,6 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 				host,
 			},
 		},
-		{name: "POST Empty Body",
-			want: response{
-				code: 400,
-				body: "The query must contain a link\n",
-				//contentType: "application/json",
-				headers: map[string]string{},
-			},
-			args: args{
-				http.MethodPost,
-				bytes.NewBuffer([]byte("")),
-				host,
-			},
-		},
 		{name: "GET ALL",
 			want: response{
 				code:    200,
@@ -154,7 +154,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 
 	strg := storage.NewMemoryRep()
 
-	h := NewHandler(strg, "localhost:8080")
+	h := NewHandler(strg, "http://localhost:8080")
 	serv := h.New()
 
 	//ts := httptest.NewServer(handl)
