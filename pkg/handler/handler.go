@@ -60,7 +60,8 @@ func (h *Handler) addLink(c *gin.Context) {
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	//w.WriteHeader(http.StatusCreated) //201
 	//w.Write([]byte("http://" + h.host + "/" + shortURL))
-	c.String(http.StatusCreated, "http://"+h.host+"/"+shortURL)
+	//c.String(http.StatusCreated, "http://"+h.host+"/"+shortURL)
+	c.String(http.StatusCreated, h.host+"/"+shortURL)
 
 	fmt.Println("Это Post")
 	//c.Writer.Write([]byte("<h1>Привет это POST!</h1>"))
@@ -109,8 +110,9 @@ func (h *Handler) GetShorten(c *gin.Context) {
 	if err := json.Unmarshal(body, &value); err != nil {
 		panic(err)
 	}
-	r := strings.NewReplacer(h.host+"/", "", "http://", "")
-	idUrl := r.Replace(value.Url)
+	//r := strings.NewReplacer(h.host+"/", "", "http://", "")
+	//idUrl := r.Replace(value.Url)
+	idUrl := strings.Replace(value.Url, h.host+"/", "", 1)
 	longURL, err := h.storage.GetByID(idUrl)
 	if err != nil {
 		http.Error(c.Writer, err.Error(), http.StatusNotFound)
