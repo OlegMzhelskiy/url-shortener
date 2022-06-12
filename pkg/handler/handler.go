@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
+	"strings"
+
 	//"url-shortener/cmd/shortener"
 	"url-shortener/storage"
 )
@@ -34,6 +37,7 @@ func (h *Handler) New() *gin.Engine {
 	router.GET("/", h.getEmptyID)
 	router.GET("/:id", h.getLinkByID)
 	router.GET("/all", h.PrintAll)
+	router.POST("/api/shorten", h.GetShorten)
 
 	return router
 }
@@ -43,17 +47,16 @@ func (h *Handler) addLink(c *gin.Context) {
 	w := c.Writer
 	fmt.Printf("Получен запрос POST %s\n", r.RequestURI)
 	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	strbody := string(body)
-	defer r.Body.Close()
-	if len(strbody) == 0 {
+	if len(body) == 0 {
 		http.Error(w, "The query must contain a link", http.StatusBadRequest)
 		return
 	}
-	shortURL, err := storage.AddToCollection(h.storage, strbody)
+	shortURL, err := storage.AddToCollection(h.storage, string(body))
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	//w.WriteHeader(http.StatusCreated) //201
 	//w.Write([]byte("http://" + h.host + "/" + shortURL))
@@ -86,6 +89,38 @@ func (h *Handler) getLinkByID(c *gin.Context) {
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	w.Header().Set("Location", longURL)
 	w.WriteHeader(http.StatusTemporaryRedirect) //307
+}
+
+func (h *Handler) GetShorten(c *gin.Context) {
+	fmt.Printf("Получен запрос POST %s\n", c.Request.RequestURI)
+	body, err := io.ReadAll(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(c.Writer, "The query must contain a short URL", http.StatusBadRequest)
+		return
+	}
+	value := struct {
+		Url string `json:"url"`
+	}{}
+	if err := json.Unmarshal(body, &value); err != nil {
+		panic(err)
+	}
+	r := strings.NewReplacer(h.host+"/", "", "http://", "")
+	idUrl := r.Replace(value.Url)
+	longURL, err := h.storage.GetByID(idUrl)
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusNotFound)
+		return
+	}
+	result := struct {
+		Url string `json:"result"`
+	}{longURL}
+	//json.Marshal(result)
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *Handler) getEmptyID(c *gin.Context) {

@@ -3,8 +3,6 @@ package handler
 import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -124,6 +122,34 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 				host + "all",
 			},
 		},
+		{name: "POST /api/shorten",
+			want: response{
+				code: 200,
+				body: `{"result":"https://zen.yandex.ru/media/1fx_online/advcash-chto-eto-takoe-i-dlia-kogo-dlia-chego-nujen-etot-elektronnyi-koshelek-6061c1d814931c44e89c923b"}`,
+				headers: map[string]string{
+					"Content-Type": "application/json; charset=utf-8",
+				},
+			},
+			args: args{
+				http.MethodPost,
+				bytes.NewBuffer([]byte(`{"url":"http://localhost:8080/bhgaedbedj"}`)),
+				host + "api/shorten",
+			},
+		},
+		{name: "POST /api/shorten - Bad request!",
+			want: response{
+				code: 404,
+				body: "not found\n",
+				headers: map[string]string{
+					"Content-Type": "text/plain; charset=utf-8",
+				},
+			},
+			args: args{
+				http.MethodPost,
+				bytes.NewBuffer([]byte(`{"url":"http://localhost:8080/bhgaedbedq"}`)),
+				host + "api/shorten",
+			},
+		},
 	}
 
 	strg := storage.NewMemoryRep()
@@ -181,18 +207,18 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 	}
 }
 
-func testRequest(t *testing.T, ts *httptest.Server, method, path string, body *bytes.Buffer) (*http.Response, string) {
-	req, err := http.NewRequest(method, path, body)
-	require.NoError(t, err)
-	//req := httptest.NewRequest(method, path, body)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-
-	respBody, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	defer resp.Body.Close()
-
-	return resp, string(respBody)
-}
+//func testRequest(t *testing.T, ts *httptest.Server, method, path string, body *bytes.Buffer) (*http.Response, string) {
+//	req, err := http.NewRequest(method, path, body)
+//	require.NoError(t, err)
+//	//req := httptest.NewRequest(method, path, body)
+//
+//	resp, err := http.DefaultClient.Do(req)
+//	require.NoError(t, err)
+//
+//	respBody, err := ioutil.ReadAll(resp.Body)
+//	require.NoError(t, err)
+//
+//	defer resp.Body.Close()
+//
+//	return resp, string(respBody)
+//}
