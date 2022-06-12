@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"url-shortener/cmd/server"
 	"url-shortener/pkg/handler"
 	"url-shortener/storage"
 )
@@ -23,8 +24,8 @@ func main() {
 	handl := handler.NewHandler(strg, baseUrl)
 	router := handl.New()
 
-	//serv := new(server.Server) //нужна ли мне вообще структура Server?
-	//log.Fatal(serv.Run("8080", router))
+	serv := new(server.Server) //нужна ли мне вообще структура Server?
+	log.Fatal(serv.Run("8080", router))
 
-	log.Fatal(router.Run(host))
+	//log.Fatal(router.Run(host))
 }
