@@ -125,28 +125,14 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 		{name: "POST /api/shorten",
 			want: response{
 				code: 200,
-				body: `{"result":"https://zen.yandex.ru/media/1fx_online/advcash-chto-eto-takoe-i-dlia-kogo-dlia-chego-nujen-etot-elektronnyi-koshelek-6061c1d814931c44e89c923b"}`,
+				body: `{"result":"http://localhost:8080/bhgaedbedj"}`,
 				headers: map[string]string{
 					"Content-Type": "application/json; charset=utf-8",
 				},
 			},
 			args: args{
 				http.MethodPost,
-				bytes.NewBuffer([]byte(`{"url":"http://localhost:8080/bhgaedbedj"}`)),
-				host + "api/shorten",
-			},
-		},
-		{name: "POST /api/shorten - Bad request!",
-			want: response{
-				code: 404,
-				body: "not found\n",
-				headers: map[string]string{
-					"Content-Type": "text/plain; charset=utf-8",
-				},
-			},
-			args: args{
-				http.MethodPost,
-				bytes.NewBuffer([]byte(`{"url":"http://localhost:8080/bhgaedbedq"}`)),
+				bytes.NewBuffer([]byte(`{"url":"https://zen.yandex.ru/media/1fx_online/advcash-chto-eto-takoe-i-dlia-kogo-dlia-chego-nujen-etot-elektronnyi-koshelek-6061c1d814931c44e89c923b"}`)),
 				host + "api/shorten",
 			},
 		},

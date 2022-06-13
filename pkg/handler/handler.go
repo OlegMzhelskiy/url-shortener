@@ -6,8 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
-	"strings"
-
 	//"url-shortener/cmd/shortener"
 	"url-shortener/storage"
 )
@@ -112,15 +110,18 @@ func (h *Handler) GetShorten(c *gin.Context) {
 	}
 	//r := strings.NewReplacer(h.host+"/", "", "http://", "")
 	//idUrl := r.Replace(value.Url)
-	idUrl := strings.Replace(value.Url, h.host+"/", "", 1)
-	longURL, err := h.storage.GetByID(idUrl)
+	//idUrl := strings.Replace(value.Url, h.host+"/", "", 1)
+	//longURL, err := h.storage.GetByID(idUrl)
+
+	shortURL, err := storage.AddToCollection(h.storage, value.Url)
+
 	if err != nil {
 		http.Error(c.Writer, err.Error(), http.StatusNotFound)
 		return
 	}
 	result := struct {
 		Url string `json:"result"`
-	}{longURL}
+	}{h.host + "/" + shortURL}
 	//json.Marshal(result)
 	c.JSON(http.StatusOK, result)
 }

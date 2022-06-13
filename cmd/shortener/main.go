@@ -7,9 +7,11 @@ import (
 	"url-shortener/storage"
 )
 
-var host = "localhost:8080"
-
 func main() {
+
+	host := "localhost:8080"
+	baseUrl := "http://" + host
+
 	//host, ok := os.LookupEnv("SERVER_ADDRESS")
 	//if ok == false || host == "" {
 	//	panic("Не задано значение переменной окружения SERVER_ADDRESS")
@@ -18,7 +20,6 @@ func main() {
 	//if ok == false || baseUrl == "" {
 	//	panic("Не задано значение переменной окружения BASE_URL")
 	//}
-	baseUrl := "http://" + host
 
 	strg := storage.NewMemoryRep()
 	handl := handler.NewHandler(strg, baseUrl)
