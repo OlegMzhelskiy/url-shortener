@@ -123,7 +123,7 @@ func (h *Handler) GetShorten(c *gin.Context) {
 		Url string `json:"result"`
 	}{h.host + "/" + shortURL}
 	//json.Marshal(result)
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusCreated, result)
 }
 
 func (h *Handler) getEmptyID(c *gin.Context) {
