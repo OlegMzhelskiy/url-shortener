@@ -124,7 +124,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 		},
 		{name: "POST /api/shorten",
 			want: response{
-				code: 200,
+				code: 201,
 				body: `{"result":"http://localhost:8080/bhgaedbedj"}`,
 				headers: map[string]string{
 					"Content-Type": "application/json; charset=utf-8",
