@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"url-shortener/cmd/server"
 	"url-shortener/pkg/handler"
 	"url-shortener/storage"
@@ -21,13 +22,18 @@ func main() {
 	if ok == false || baseUrl == "" {
 		panic("Не задано значение переменной окружения BASE_URL")
 	}
+	storagePath, _ := os.LookupEnv("FILE_STORAGE_PATH")
 
-	strg := storage.NewMemoryRep()
+	if strings.HasSuffix(baseUrl, "/") == false {
+		baseUrl += "/"
+	}
+
+	strg := storage.NewMemoryRep(storagePath)
 	handl := handler.NewHandler(strg, baseUrl)
 	router := handl.New()
 
 	serv := new(server.Server) //нужна ли мне вообще структура Server?
-	log.Fatal(serv.Run("8080", router))
+	log.Fatal(serv.Run(host, router))
 
-	//log.Fatal(router.Run(host))
+	//log.Fatal(router.Run(host)) //или можно так запустить?
 }

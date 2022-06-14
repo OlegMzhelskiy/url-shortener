@@ -59,7 +59,7 @@ func (h *Handler) addLink(c *gin.Context) {
 	//w.WriteHeader(http.StatusCreated) //201
 	//w.Write([]byte("http://" + h.host + "/" + shortURL))
 	//c.String(http.StatusCreated, "http://"+h.host+"/"+shortURL)
-	c.String(http.StatusCreated, h.host+"/"+shortURL)
+	c.String(http.StatusCreated, h.host+shortURL)
 
 	fmt.Println("Это Post")
 	//c.Writer.Write([]byte("<h1>Привет это POST!</h1>"))
@@ -121,7 +121,7 @@ func (h *Handler) GetShorten(c *gin.Context) {
 	}
 	result := struct {
 		Url string `json:"result"`
-	}{h.host + "/" + shortURL}
+	}{h.host + shortURL}
 	//json.Marshal(result)
 	c.JSON(http.StatusCreated, result)
 }

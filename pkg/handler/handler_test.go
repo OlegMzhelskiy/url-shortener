@@ -9,6 +9,7 @@ import (
 	"url-shortener/storage"
 )
 
+var filePath = ""
 var host = "http://localhost:8080/"
 var url1 = "https://zen.yandex.ru/media/1fx_online/advcash-chto-eto-takoe-i-dlia-kogo-dlia-chego-nujen-etot-elektronnyi-koshelek-6061c1d814931c44e89c923b"
 
@@ -138,9 +139,9 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 		},
 	}
 
-	strg := storage.NewMemoryRep()
+	strg := storage.NewMemoryRep(filePath)
 
-	h := NewHandler(strg, "http://localhost:8080")
+	h := NewHandler(strg, host) //"http://localhost:8080"
 	serv := h.New()
 
 	//ts := httptest.NewServer(handl)

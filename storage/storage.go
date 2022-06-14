@@ -13,13 +13,20 @@ type Storager interface {
 }
 
 type MemoryRep struct {
-	db map[string]string
+	db              map[string]string
+	fileStoragePath string
 }
 
-func NewMemoryRep() *MemoryRep {
-	return &MemoryRep{
-		db: make(map[string]string),
+func NewMemoryRep(fileStoragePath string) *MemoryRep {
+	rep := &MemoryRep{
+		db:              make(map[string]string),
+		fileStoragePath: fileStoragePath,
 	}
+	//Если заполнен путь к файлу то читаем сохраненные URL
+	if len(fileStoragePath) > 0 {
+
+	}
+	return rep
 }
 
 func (m MemoryRep) GetAll() map[string]string {
