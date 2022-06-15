@@ -30,7 +30,7 @@ func main() {
 	if strings.HasSuffix(baseUrl, "/") == false {
 		baseUrl += "/"
 	}
-	storagePath, ok := os.LookupEnv("FILE_STORAGE_PATH")
+	storagePath, ok := os.LookupEnv("FILE_STORAGE_PATH") //URLdata.json
 	if ok == false || baseUrl == "" {
 		fmt.Println(("Не задано значение переменной окружения FILE_STORAGE_PATH"))
 	}
@@ -38,6 +38,8 @@ func main() {
 	strg := storage.NewMemoryRep(storagePath)
 	handl := handler.NewHandler(strg, baseUrl)
 	router := handl.New()
+
+	//defer strg.WriteRepoFromFile() //Запишем в файл по завершении работы сервера
 
 	serv := new(server.Server) //нужна ли мне вообще структура Server?
 	log.Fatal(serv.Run(host, router))
