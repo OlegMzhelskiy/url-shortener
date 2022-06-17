@@ -55,6 +55,9 @@ func (h *Handler) addLink(c *gin.Context) {
 		return
 	}
 	shortURL, err := storage.AddToCollection(h.storage, string(body))
+	if err != nil {
+		fmt.Printf("Ошибка при добавлении в коллекцию: %s \n", err)
+	}
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	//w.WriteHeader(http.StatusCreated) //201
 	//w.Write([]byte("http://" + h.host + "/" + shortURL))

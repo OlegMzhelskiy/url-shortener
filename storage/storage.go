@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"os"
 	"strconv"
@@ -28,7 +29,10 @@ func NewMemoryRep(fileStoragePath string) *MemoryRep {
 	}
 	//Если заполнен путь к файлу то читаем сохраненные URL
 	if len(fileStoragePath) > 0 {
-		rep.ReadRepoFromFile()
+		err := rep.ReadRepoFromFile()
+		if err != nil {
+			fmt.Printf("Ошибка чтения файла %s \n", err)
+		}
 	}
 	return rep
 }
@@ -42,7 +46,9 @@ func (m MemoryRep) SaveLink(shortURL, longURL string) error {
 	if !ok {
 		m.db[shortURL] = longURL
 		err := m.WriteRepoFromFile() //При сохранении нового URL запишем в файл
-		return err
+		if err != nil {
+			return errors.New(fmt.Sprintf("Ошибка записи в файл: %s", err))
+		}
 	}
 	return nil
 }
@@ -114,14 +120,14 @@ func (m *MemoryRep) ReadRepoFromFile() error {
 	defer file.Close()
 	//reader := bufio.NewReader(file)
 	//data, err := reader.ReadBytes()
-	scaner := bufio.NewScanner(file)
-	scaner.Scan()
-	data := scaner.Bytes()
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	data := scanner.Bytes()
 
 	if data != nil {
 		err = json.Unmarshal(data, &m.db)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
 	return nil
