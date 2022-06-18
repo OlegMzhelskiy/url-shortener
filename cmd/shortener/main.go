@@ -38,7 +38,7 @@ func main() {
 		}
 	}
 	host = getVarValue(*flagHost, "SERVER_ADDRESS", "localhost:8080")
-	baseUrl = getVarValue(*flagBaseUrl, "FILE_STORAGE_PATH", "http://"+host)
+	baseUrl = getVarValue(*flagBaseUrl, "BASE_URL", "http://"+host)
 	storagePath = getVarValue(*flagFilePath, "FILE_STORAGE_PATH", "")
 
 	//if len(*flagHost) == 0 {
