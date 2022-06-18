@@ -23,9 +23,9 @@ func main() {
 		storagePath = ""
 	)
 
-	flagHost := flag.String("a", host, "a string")            //SERVER_ADDRESS
-	flagBaseUrl := flag.String("b", baseUrl, "b string")      //BASE_URL
-	flagFilePath := flag.String("f", storagePath, "f string") //FILE_STORAGE_PATH
+	flagHost := flag.String("a", "", "a string")     //SERVER_ADDRESS
+	flagBaseUrl := flag.String("b", "", "b string")  //BASE_URL
+	flagFilePath := flag.String("f", "", "f string") //FILE_STORAGE_PATH
 	flag.Parse()
 
 	//Проверка корректности заоплнения
@@ -78,6 +78,7 @@ func main() {
 	handl := handler.NewHandler(strg, baseUrl)
 	router := handl.New()
 
+	fmt.Printf("Host: %s\n", host)
 	//defer strg.WriteRepoFromFile() //Запишем в файл по завершении работы сервера
 
 	serv := new(server.Server) //нужна ли мне вообще структура Server?
