@@ -28,6 +28,18 @@ func main() {
 	flagFilePath := flag.String("f", storagePath, "f string") //FILE_STORAGE_PATH
 	flag.Parse()
 
+	//Проверка корректности заоплнения
+	if len(*flagHost) > 0 {
+		//Если задан только порт в формате :8080
+		if strings.HasPrefix(*flagHost, ":") {
+			*flagHost = "localhost" + *flagHost
+		} else {
+			st := strings.Split(*flagHost, ":")
+			if len(st) == 1 {
+				*flagHost = st[0] + ":" + "8080"
+			}
+		}
+	}
 	if len(*flagHost) == 0 {
 		host, ok := os.LookupEnv("SERVER_ADDRESS")
 		if ok == false || host == "" {
