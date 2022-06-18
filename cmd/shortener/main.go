@@ -18,9 +18,9 @@ func main() {
 
 	//Значения по умолчанию
 	var (
-		host        = "localhost:8080"
-		baseUrl     = "http://" + host
-		storagePath = ""
+		host        string
+		baseUrl     string
+		storagePath string
 	)
 
 	flagHost := flag.String("a", "", "a string")     //SERVER_ADDRESS
@@ -45,7 +45,7 @@ func main() {
 		if ok == false || host == "" {
 			//panic("Не задано значение переменной окружения SERVER_ADDRESS")
 			fmt.Println("Не задано значение переменной окружения SERVER_ADDRESS")
-			//host = "localhost:8080"
+			host = "localhost:8080"
 		}
 	} else {
 		host = *flagHost
@@ -56,7 +56,7 @@ func main() {
 		if ok == false || baseUrl == "" {
 			//panic("Не задано значение переменной окружения BASE_URL")
 			fmt.Println(("Не задано значение переменной окружения BASE_URL"))
-			//baseUrl = "http://" + host
+			baseUrl = "http://" + host
 		}
 	} else {
 		baseUrl = *flagBaseUrl
