@@ -17,11 +17,10 @@ func main() {
 	//baseUrl := "http://" + host
 
 	//Значения по умолчанию
-	var (
-		host        string
-		baseUrl     string
-		storagePath string
-	)
+	var host string
+	var baseUrl string
+	var storagePath string
+	var ok bool
 
 	flagHost := flag.String("a", "", "a string")     //SERVER_ADDRESS
 	flagBaseUrl := flag.String("b", "", "b string")  //BASE_URL
@@ -41,9 +40,8 @@ func main() {
 		}
 	}
 	if len(*flagHost) == 0 {
-		host, ok := os.LookupEnv("SERVER_ADDRESS")
+		host, ok = os.LookupEnv("SERVER_ADDRESS")
 		if ok == false || host == "" {
-			//panic("Не задано значение переменной окружения SERVER_ADDRESS")
 			fmt.Println("Не задано значение переменной окружения SERVER_ADDRESS")
 			host = "localhost:8080"
 		}
@@ -52,9 +50,8 @@ func main() {
 	}
 
 	if len(*flagBaseUrl) == 0 {
-		baseUrl, ok := os.LookupEnv("BASE_URL")
+		baseUrl, ok = os.LookupEnv("BASE_URL")
 		if ok == false || baseUrl == "" {
-			//panic("Не задано значение переменной окружения BASE_URL")
 			fmt.Println(("Не задано значение переменной окружения BASE_URL"))
 			baseUrl = "http://" + host
 		}
@@ -66,7 +63,7 @@ func main() {
 		baseUrl += "/"
 	}
 
-	storagePath, ok := os.LookupEnv("FILE_STORAGE_PATH") //URLdata.json
+	storagePath, ok = os.LookupEnv("FILE_STORAGE_PATH") //URLdata.json
 	if ok == false || baseUrl == "" {
 		fmt.Println(("Не задано значение переменной окружения FILE_STORAGE_PATH"))
 	}
