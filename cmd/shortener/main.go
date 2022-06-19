@@ -41,42 +41,13 @@ func main() {
 	baseUrl = getVarValue(*flagBaseUrl, "BASE_URL", "http://"+host)
 	storagePath = getVarValue(*flagFilePath, "FILE_STORAGE_PATH", "")
 
-	//if len(*flagHost) == 0 {
-	//	host, ok = os.LookupEnv("SERVER_ADDRESS")
-	//	if ok == false || host == "" {
-	//		fmt.Println("Не задано значение переменной окружения SERVER_ADDRESS")
-	//		host = "localhost:8080"
-	//	}
-	//} else {
-	//	host = *flagHost
-	//}
-	//
-	//if len(*flagBaseUrl) == 0 {
-	//	baseUrl, ok = os.LookupEnv("BASE_URL")
-	//	if ok == false || baseUrl == "" {
-	//		fmt.Println(("Не задано значение переменной окружения BASE_URL"))
-	//		baseUrl = "http://" + host
-	//	}
-	//} else {
-	//	baseUrl = *flagBaseUrl
-	//}
-	//
-	//if len(*flagFilePath) == 0 {
-	//	storagePath, ok = os.LookupEnv("FILE_STORAGE_PATH") //URLdata.json
-	//	if ok == false || storagePath == "" {
-	//		fmt.Println(("Не задано значение переменной окружения FILE_STORAGE_PATH"))
-	//	}
-	//} else {
-	//	storagePath = *flagFilePath
-	//}
-
 	if strings.HasSuffix(baseUrl, "/") == false {
 		baseUrl += "/"
 	}
 
 	strg := storage.NewMemoryRep(storagePath)
 	handl := handler.NewHandler(strg, baseUrl)
-	router := handl.New()
+	router := handl.NewRouter()
 
 	fmt.Printf("Host: %s\n", host)
 	//defer strg.WriteRepoFromFile() //Запишем в файл по завершении работы сервера

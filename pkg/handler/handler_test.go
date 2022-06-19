@@ -142,7 +142,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 	strg := storage.NewMemoryRep(filePath)
 
 	h := NewHandler(strg, host) //"http://localhost:8080"
-	serv := h.New()
+	serv := h.NewRouter()
 
 	//ts := httptest.NewServer(handl)
 	//defer ts.Close()
