@@ -2,6 +2,8 @@ package storage
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,21 +13,32 @@ import (
 )
 
 type Storager interface {
-	SaveLink(shortLink, longLink string) error
+	SaveLink(shortLink, longLink, userId string) error
 	GetByID(string) (string, error)
-	GetAll() map[string]string
+	GetAll() map[string]UserURL
+	NewUserID() string
+	UserIdIsExist(userId string) bool
+	GetUserUrls(userId string) []PairURL
 }
 
 type MemoryRep struct {
-	db              map[string]string
+	db              map[string]UserURL
 	fileStoragePath string
+	usersId         map[string]int
+	baseUrl         string
+}
+
+type UserURL struct {
+	OriginUrl string `json:"originUrl"`
+	UserId    string `json:"userId"`
 }
 
 //Инициализация
 func NewMemoryRep(fileStoragePath string) *MemoryRep {
 	rep := &MemoryRep{
-		db:              make(map[string]string),
+		db:              make(map[string]UserURL),
 		fileStoragePath: fileStoragePath,
+		usersId:         make(map[string]int),
 	}
 	//Если заполнен путь к файлу то читаем сохраненные URL
 	if len(fileStoragePath) > 0 {
@@ -37,14 +50,14 @@ func NewMemoryRep(fileStoragePath string) *MemoryRep {
 	return rep
 }
 
-func (m MemoryRep) GetAll() map[string]string {
+func (m MemoryRep) GetAll() map[string]UserURL {
 	return m.db
 }
 
-func (m MemoryRep) SaveLink(shortURL, longURL string) error {
+func (m MemoryRep) SaveLink(shortURL, longURL, userId string) error {
 	_, ok := m.db[shortURL]
 	if !ok {
-		m.db[shortURL] = longURL
+		m.db[shortURL] = UserURL{longURL, userId}
 		err := m.WriteRepoFromFile() //При сохранении нового URL запишем в файл
 		if err != nil {
 			return errors.New(fmt.Sprintf("Ошибка записи в файл: %s", err))
@@ -58,13 +71,13 @@ func (m MemoryRep) GetByID(id string) (string, error) {
 	if !ok {
 		return "", errors.New("not found")
 	}
-	return val, nil
+	return val.OriginUrl, nil
 }
 
 //Функция которая принимает в качестве аргумента именно интерфейс
-func AddToCollection(m Storager, longURL string) (s string, err error) {
+func AddToCollection(m Storager, longURL, userId string) (s string, err error) {
 	shortURL := generateIdentify(longURL)
-	return shortURL, m.SaveLink(shortURL, longURL)
+	return shortURL, m.SaveLink(shortURL, longURL, userId)
 }
 
 func generateIdentify(s string) string {
@@ -95,7 +108,7 @@ func (m MemoryRep) WriteRepoFromFile() error {
 	writer := bufio.NewWriter(file)
 	data, err := json.Marshal(m.db)
 	if err != nil {
-		panic(err)
+		return err //panic(err)
 	}
 	data = append(data, '\n')
 	if _, err := writer.Write(data); err != nil {
@@ -131,4 +144,38 @@ func (m *MemoryRep) ReadRepoFromFile() error {
 		}
 	}
 	return nil
+}
+
+func (m *MemoryRep) NewUserID() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		fmt.Printf("Не удалось сформировать идентификатор пользователя: %v\n", err)
+		return ""
+	}
+	id := hex.EncodeToString(b)
+	m.usersId[id]++
+	return id
+	//return base64.StdEncoding.EncodeToString(b)
+}
+
+//Проверка что такой User Id выдавался
+func (m *MemoryRep) UserIdIsExist(UserId string) bool {
+	return m.usersId[UserId] > 0
+}
+
+type PairURL struct {
+	ShortUrl    string `json:"short_url,omitempty"`
+	OriginalUrl string `json:"original_url,omitempty"`
+}
+
+func (m MemoryRep) GetUserUrls(UserId string) []PairURL {
+	masUrls := make([]PairURL, 0)
+	for key, val := range m.db {
+		if val.UserId == UserId {
+			newPair := PairURL{m.baseUrl + key, val.OriginUrl}
+			masUrls = append(masUrls, newPair)
+		}
+	}
+	return masUrls
 }

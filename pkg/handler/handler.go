@@ -2,7 +2,11 @@ package handler
 
 import (
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -12,6 +16,8 @@ import (
 	//"url-shortener/cmd/shortener"
 	"url-shortener/storage"
 )
+
+var secretkey = []byte("It is a secret key")
 
 type Handler struct {
 	storage storage.Storager
@@ -28,6 +34,7 @@ func (h *Handler) NewRouter() *gin.Engine {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(gzipHandle())
+	router.Use(h.cookiesHandle())
 
 	//group := router.Group("/")
 	//{
@@ -42,6 +49,7 @@ func (h *Handler) NewRouter() *gin.Engine {
 	router.GET("/:id", h.getLinkByID)
 	router.GET("/all", h.PrintAll)
 	router.POST("/api/shorten", h.GetShorten)
+	router.GET("/api/user/urls", h.GetUserUrls)
 
 	return router
 }
@@ -60,7 +68,14 @@ func (h *Handler) addLink(c *gin.Context) {
 		http.Error(w, "The query must contain a link", http.StatusBadRequest)
 		return
 	}
-	shortURL, err := storage.AddToCollection(h.storage, string(body))
+
+	userId, ex := c.Get("userId")
+	if ex == false {
+		http.Error(c.Writer, "Отсутствует user id в контексте", http.StatusNoContent)
+		return
+	}
+
+	shortURL, err := storage.AddToCollection(h.storage, string(body), userId.(string))
 	if err != nil {
 		fmt.Printf("Ошибка при добавлении в коллекцию: %s \n", err)
 	}
@@ -112,14 +127,16 @@ func (h *Handler) GetShorten(c *gin.Context) {
 		Url string `json:"url"`
 	}{}
 	if err := json.Unmarshal(body, &value); err != nil {
-		panic(err)
+		http.Error(c.Writer, "Error: unmarshal body ", http.StatusInternalServerError) //panic(err)
 	}
-	//r := strings.NewReplacer(h.host+"/", "", "http://", "")
-	//idUrl := r.Replace(value.Url)
-	//idUrl := strings.Replace(value.Url, h.host+"/", "", 1)
-	//longURL, err := h.storage.GetByID(idUrl)
 
-	shortURL, err := storage.AddToCollection(h.storage, value.Url)
+	userId, ex := c.Get("userId")
+	if ex == false {
+		http.Error(c.Writer, "Отсутствует user id в контексте", http.StatusNoContent)
+		return
+	}
+
+	shortURL, err := storage.AddToCollection(h.storage, value.Url, userId.(string))
 
 	if err != nil {
 		http.Error(c.Writer, err.Error(), http.StatusNotFound)
@@ -155,7 +172,7 @@ type gzipReader struct {
 }
 
 func gzipHandle() gin.HandlerFunc {
-	fn := func(c *gin.Context) {
+	return func(c *gin.Context) {
 		fmt.Println("Это gzipHandle")
 
 		//Распаковка тела запроса
@@ -193,5 +210,73 @@ func gzipHandle() gin.HandlerFunc {
 		//next.ServeHTTP(c)
 		c.Next()
 	}
-	return fn //gin.HandlerFunc(fn)
+	//return fn //gin.HandlerFunc(fn)
+}
+
+func (h *Handler) GetUserUrls(c *gin.Context) {
+	userId, ex := c.Get("userId")
+	if ex == false {
+		http.Error(c.Writer, "Отсутствует user id в контексте", http.StatusNoContent)
+		return
+	}
+	masURLs := h.storage.GetUserUrls(userId.(string))
+	c.JSON(http.StatusOK, masURLs)
+}
+
+func (h *Handler) cookiesHandle() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cookieUserId := ""
+		userId, idMAC, err := h.getUserIDFromCookie(c)
+		if err != nil {
+			cookieUserId, userId = h.NewCookieUserID()
+		} else {
+			//Проверяем полученные куки
+			if !ValidMAC([]byte(userId), []byte(idMAC), secretkey) || !h.storage.UserIdIsExist(userId) {
+				cookieUserId, userId = h.NewCookieUserID()
+			}
+		}
+
+		if len(cookieUserId) == 0 {
+			cookieUserId = userId + "." + idMAC
+		}
+
+		c.SetCookie("userId", cookieUserId, 3600, "/", "localhost", false, true)
+		c.Set("userId", userId) //Передаем значение userId через контекст запроса
+		c.Next()
+	}
+}
+
+func (h *Handler) getUserIDFromCookie(c *gin.Context) (string, string, error) {
+
+	cookieUserId, err := c.Cookie("userId")
+	if err != nil {
+		return "", "", errors.New("Отсутствует cookie user id")
+	}
+
+	//Проверяем полученные куки
+	str := strings.Split(cookieUserId, ".")
+	if len(str) != 2 {
+		return "", "", errors.New("Неверный формат cookie user id")
+	}
+	return str[0], str[1], nil
+}
+
+//генерируем новый id, подписываем его и устанавливаем в Cookie
+func (h *Handler) NewCookieUserID() (string, string) {
+	id := h.storage.NewUserID()
+
+	hashf := hmac.New(sha256.New, secretkey)
+	hashf.Write([]byte(id))
+	hsum := hex.EncodeToString(hashf.Sum(nil))
+	valueId := id + "." + hsum
+
+	return valueId, id
+}
+
+//Проверка подписи userId
+func ValidMAC(message, messageMAC, key []byte) bool {
+	mac := hmac.New(sha256.New, key)
+	mac.Write(message)
+	expectedMAC := hex.EncodeToString(mac.Sum(nil))
+	return hmac.Equal(messageMAC, []byte(expectedMAC))
 }
