@@ -45,8 +45,8 @@ func main() {
 		baseUrl += "/"
 	}
 
-	strg := storage.NewMemoryRep(storagePath)
-	handl := handler.NewHandler(strg, baseUrl)
+	storageDB := storage.NewMemoryRep(storagePath, baseUrl)
+	handl := handler.NewHandler(storageDB, baseUrl)
 	router := handl.NewRouter()
 
 	fmt.Printf("Host: %s\n", host)

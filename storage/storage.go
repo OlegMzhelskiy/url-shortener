@@ -34,11 +34,12 @@ type UserURL struct {
 }
 
 //Инициализация
-func NewMemoryRep(fileStoragePath string) *MemoryRep {
+func NewMemoryRep(fileStoragePath, baseUrl string) *MemoryRep {
 	rep := &MemoryRep{
 		db:              make(map[string]UserURL),
 		fileStoragePath: fileStoragePath,
 		usersId:         make(map[string]int),
+		baseUrl:         baseUrl,
 	}
 	//Если заполнен путь к файлу то читаем сохраненные URL
 	if len(fileStoragePath) > 0 {
