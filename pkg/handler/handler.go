@@ -36,14 +36,6 @@ func (h *Handler) NewRouter() *gin.Engine {
 	router.Use(gzipHandle())
 	router.Use(h.cookiesHandle())
 
-	//group := router.Group("/")
-	//{
-	//	group.POST("", h.addLink)
-	//	group.GET("", h.getEmptyID)
-	//	group.GET("/:id", h.getLinkByID)
-	//	group.GET("/all", h.PrintAll)
-	//}
-
 	router.POST("/", h.addLink)
 	router.GET("/", h.getEmptyID)
 	router.GET("/:id", h.getLinkByID)
@@ -220,6 +212,10 @@ func (h *Handler) GetUserUrls(c *gin.Context) {
 		return
 	}
 	masURLs := h.storage.GetUserUrls(userId.(string))
+	if len(masURLs) == 0 {
+		c.String(http.StatusNoContent, "")
+		return
+	}
 	c.JSON(http.StatusOK, masURLs)
 }
 

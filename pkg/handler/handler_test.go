@@ -195,6 +195,21 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 				},
 			},
 		},
+		{name: "GET /api/user/urls",
+			want: response{
+				code:    204,
+				body:    "", //"[]"
+				headers: map[string]string{
+					//	"Content-Type": "application/json; charset=utf-8",
+				},
+			},
+			args: args{
+				http.MethodGet,
+				bytes.NewBuffer([]byte("")),
+				host + "api/user/urls",
+				map[string]string{},
+			},
+		},
 	}
 
 	strg := storage.NewMemoryRep(filePath, baseUrl)
