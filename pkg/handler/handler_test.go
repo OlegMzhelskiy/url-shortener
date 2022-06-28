@@ -36,6 +36,8 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 	//	storage storage.Storager
 	//}
 
+	baseUrl := "http://" + host + "/"
+
 	tests := []struct {
 		name string
 		args args
@@ -195,7 +197,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 		},
 	}
 
-	strg := storage.NewMemoryRep(filePath)
+	strg := storage.NewMemoryRep(filePath, baseUrl)
 
 	h := NewHandler(strg, host) //"http://localhost:8080"
 	router := h.NewRouter()
