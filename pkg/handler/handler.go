@@ -22,10 +22,22 @@ var secretkey = []byte("It is a secret key")
 type Handler struct {
 	storage storage.Storager
 	host    string
+	dbDSN   string
+	//config *Config
 }
 
-func NewHandler(s storage.Storager, host string) *Handler {
-	return &Handler{storage: s, host: host}
+type Config struct {
+	Host  string
+	DBDSN string
+}
+
+//func NewHandler(s storage.Storager, host string) *Handler {
+func NewHandler(s storage.Storager, config *Config) *Handler {
+	return &Handler{
+		storage: s,
+		host:    config.Host,
+		dbDSN:   config.DBDSN,
+	}
 }
 
 //Gin
@@ -42,6 +54,7 @@ func (h *Handler) NewRouter() *gin.Engine {
 	router.GET("/all", h.PrintAll)
 	router.POST("/api/shorten", h.GetShorten)
 	router.GET("/api/user/urls", h.GetUserUrls)
+	router.GET("/ping", h.Ping)
 
 	return router
 }
@@ -82,7 +95,7 @@ func (h *Handler) addLink(c *gin.Context) {
 
 func (h *Handler) getLinkByID(c *gin.Context) {
 	r := c.Request
-	w := c.Writer
+	//w := c.Writer
 	fmt.Printf("Получен запрос GET %s\n", r.RequestURI)
 	id := ""
 	if len(r.URL.Path) > 0 {
@@ -94,13 +107,14 @@ func (h *Handler) getLinkByID(c *gin.Context) {
 	//}
 	longURL, err := h.storage.GetByID(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		//w.Write([]byte(err.Error()))
+		//http.Error(c.Writer, err.Error(), http.StatusNotFound)
+		c.String(http.StatusNotFound, err.Error())
 		return
 	}
 	c.Header("Content-Type", "text/html; charset=UTF-8")
 	c.Header("Location", longURL)
-	w.WriteHeader(http.StatusTemporaryRedirect) //307
+	//w.WriteHeader(http.StatusTemporaryRedirect) //307
+	c.Status(http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) GetShorten(c *gin.Context) {
@@ -217,6 +231,15 @@ func (h *Handler) GetUserUrls(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, masURLs)
+}
+
+func (h *Handler) Ping(c *gin.Context) {
+	db := storage.NewStoreDB(h.dbDSN)
+	if db.Ping() == false {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Status(http.StatusOK)
 }
 
 func (h *Handler) cookiesHandle() gin.HandlerFunc {

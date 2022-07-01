@@ -18,6 +18,7 @@ var url1 = "https://zen.yandex.ru/media/1fx_online/advcash-chto-eto-takoe-i-dlia
 var short1 = host + "bhgaedbedj"
 var url2 = "https://proglib.io/p/go-programming"
 var short2 = host + "bdifachdif"
+var dbDSN = ""
 
 type args struct {
 	method  string
@@ -92,7 +93,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 		{name: "GET Error",
 			want: response{
 				code:    404,
-				body:    "not found\n",
+				body:    "not found",
 				headers: map[string]string{},
 			},
 			args: args{
@@ -214,7 +215,9 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 
 	strg := storage.NewMemoryRep(filePath, baseUrl)
 
-	h := NewHandler(strg, host) //"http://localhost:8080"
+	configHandler := &Config{host, dbDSN}
+
+	h := NewHandler(strg, configHandler) //"http://localhost:8080"
 	router := h.NewRouter()
 
 	//ts := httptest.NewServer(handl)

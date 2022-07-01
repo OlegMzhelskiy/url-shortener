@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	_ "github.com/lib/pq"
 	"log"
 	"os"
 	"strings"
@@ -19,10 +20,12 @@ func main() {
 	var host string
 	var baseUrl string
 	var storagePath string
+	var dbDSN string
 
 	flagHost := flag.String("a", "", "server address")        //SERVER_ADDRESS
 	flagBaseUrl := flag.String("b", "", "base url")           //BASE_URL
 	flagFilePath := flag.String("f", "", "file storage path") //FILE_STORAGE_PATH
+	flagDBDSN := flag.String("d", "", "DB connection")        //DATABASE_DSN
 	flag.Parse()
 
 	//Проверка корректности заполнения
@@ -40,13 +43,16 @@ func main() {
 	host = getVarValue(*flagHost, "SERVER_ADDRESS", "localhost:8080")
 	baseUrl = getVarValue(*flagBaseUrl, "BASE_URL", "http://"+host)
 	storagePath = getVarValue(*flagFilePath, "FILE_STORAGE_PATH", "")
+	dbDSN = getVarValue(*flagDBDSN, "DATABASE_DSN", "host=localhost dbname=shortener")
 
 	if strings.HasSuffix(baseUrl, "/") == false {
 		baseUrl += "/"
 	}
 
+	configHandler := &handler.Config{baseUrl, dbDSN}
+
 	storageDB := storage.NewMemoryRep(storagePath, baseUrl)
-	handl := handler.NewHandler(storageDB, baseUrl)
+	handl := handler.NewHandler(storageDB, configHandler)
 	router := handl.NewRouter()
 
 	fmt.Printf("Host: %s\n", host)
