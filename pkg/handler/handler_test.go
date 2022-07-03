@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -38,6 +39,17 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 	//}
 
 	baseUrl := "http://" + host + "/"
+
+	type elemBatch struct {
+		Id  string `json:"correlation_id"`
+		Url string `json:"original_url"`
+	}
+
+	b := []elemBatch{
+		{"1ya", "https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/"},
+		{"2cgo", "https://habr.com/ru/company/intel/blog/275709/"},
+	}
+	bodyBatch, _ := json.Marshal(b)
 
 	tests := []struct {
 		name string
@@ -211,17 +223,39 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 				map[string]string{},
 			},
 		},
+		{name: "GET /api/shorten/batch",
+			want: response{
+				code:    201,
+				body:    "[{\"correlation_id\":\"1ya\",\"original_url\":\"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/\",\"short_url\":\"ghafjfgeb\"},{\"correlation_id\":\"2cgo\",\"original_url\":\"https://habr.com/ru/company/intel/blog/275709/\",\"short_url\":\"badbgeicic\"}]",
+				headers: map[string]string{
+					//	"Content-Type": "application/json; charset=utf-8",
+				},
+			},
+			args: args{
+				http.MethodPost,
+				bytes.NewBuffer(bodyBatch),
+				host + "api/shorten/batch",
+				map[string]string{},
+			},
+		},
 	}
 
-	strg := storage.NewMemoryRep(filePath, baseUrl)
-
+	var handl *Handler
 	configHandler := &Config{host, dbDSN}
+	configStore := &storage.StoreConfig{baseUrl, dbDSN, filePath}
 
-	h := NewHandler(strg, configHandler) //"http://localhost:8080"
-	router := h.NewRouter()
+	store := storage.ConfigurateStorage(configStore)
+	defer store.Close()
+	handl = NewHandler(store, configHandler)
 
-	//ts := httptest.NewServer(handl)
-	//defer ts.Close()
+	//strg := storage.NewMemoryRep(filePath, baseUrl)
+	//
+	//configHandler := &Config{host, dbDSN}
+	////configStore := &storage.StoreConfig{baseUrl, dbDSN}
+	//
+	//h := NewHandler(strg, configHandler) //"http://localhost:8080"
+
+	router := handl.NewRouter()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

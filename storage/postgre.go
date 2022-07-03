@@ -19,11 +19,6 @@ type StoreDB struct {
 	insertStmt *sql.Stmt
 }
 
-type StoreConfig struct {
-	BaseUrl string
-	DBDNS   string
-}
-
 func NewStoreDB(config *StoreConfig) (*StoreDB, error) {
 	db, err := sqlx.Open("postgres", config.DBDNS)
 	if err != nil {

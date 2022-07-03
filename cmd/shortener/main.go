@@ -56,16 +56,20 @@ func main() {
 
 	var handl *handler.Handler
 	configHandler := &handler.Config{baseUrl, dbDSN}
-	configStore := &storage.StoreConfig{baseUrl, dbDSN}
+	configStore := &storage.StoreConfig{baseUrl, dbDSN, storagePath}
 
-	postgreDB, err := storage.NewStoreDB(configStore)
-	if err != nil || postgreDB.Ping() == false {
-		memoryDB := storage.NewMemoryRep(storagePath, baseUrl)
-		handl = handler.NewHandler(memoryDB, configHandler)
-	} else {
-		defer postgreDB.Close()
-		handl = handler.NewHandler(postgreDB, configHandler)
-	}
+	store := storage.ConfigurateStorage(configStore)
+	defer store.Close()
+	handl = handler.NewHandler(store, configHandler)
+
+	//postgreDB, err := storage.NewStoreDB(configStore)
+	//if err != nil || postgreDB.Ping() == false {
+	//	memoryDB := storage.NewMemoryRep(storagePath, baseUrl)
+	//	handl = handler.NewHandler(memoryDB, configHandler)
+	//} else {
+	//	defer postgreDB.Close()
+	//	handl = handler.NewHandler(postgreDB, configHandler)
+	//}
 
 	router := handl.NewRouter()
 
@@ -90,6 +94,10 @@ func getVarValue(flagValue, envVarName, defValue string) string {
 		}
 	}
 	return varVal
+}
+
+func Configurate() {
+
 }
 
 //func getStorageDB(storagePath, baseUrl string) *storage.Storager{

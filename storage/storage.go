@@ -18,6 +18,13 @@ type Storager interface {
 	UserIdIsExist(userId string) bool //Проверка что такой User Id выдавался
 	GetUserUrls(userId string) []PairURL
 	Ping() bool
+	Close()
+}
+
+type StoreConfig struct {
+	BaseUrl         string
+	DBDNS           string
+	FilestoragePath string
 }
 
 type PairURL struct {
@@ -34,6 +41,15 @@ type ElemBatch struct {
 	CoreId    string `json:"correlation_id"`
 	OriginUrl string `json:"original_url"`
 	ShortUrl  string `json:"short_url"`
+}
+
+func ConfigurateStorage(c *StoreConfig) Storager {
+	postgreDB, err := NewStoreDB(c)
+	if err != nil || postgreDB.Ping() == false {
+		memoryDB := NewMemoryRep(c.FilestoragePath, c.BaseUrl)
+		return memoryDB
+	}
+	return postgreDB
 }
 
 //Функция которая принимает в качестве аргумента именно интерфейс

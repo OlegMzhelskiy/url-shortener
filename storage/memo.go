@@ -143,3 +143,7 @@ func (m MemoryRep) GetUserUrls(UserId string) []PairURL {
 func (m MemoryRep) Ping() bool {
 	return false
 }
+
+func (m MemoryRep) Close() {
+
+}
