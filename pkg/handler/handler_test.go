@@ -15,6 +15,7 @@ import (
 
 var filePath = ""
 var host = "http://localhost:8080/"
+var baseUrl = "http://" + host + "/"
 var url1 = "https://zen.yandex.ru/media/1fx_online/advcash-chto-eto-takoe-i-dlia-kogo-dlia-chego-nujen-etot-elektronnyi-koshelek-6061c1d814931c44e89c923b"
 var short1 = host + "bhgaedbedj"
 var url2 = "https://proglib.io/p/go-programming"
@@ -33,16 +34,36 @@ type response struct {
 	headers map[string]string
 }
 
+type elemBatch struct {
+	Id  string `json:"correlation_id"`
+	Url string `json:"original_url"`
+}
+
+type testCase struct {
+	name string
+	args args
+	want response
+}
+
 func TestHandler_ShortenerHandler(t *testing.T) {
 	//type fields struct {
 	//	storage storage.Storager
 	//}
 
-	baseUrl := "http://" + host + "/"
+	var handl *Handler
+	configHandler := &Config{host, dbDSN}
+	configStore := &storage.StoreConfig{baseUrl, dbDSN, filePath}
 
-	type elemBatch struct {
-		Id  string `json:"correlation_id"`
-		Url string `json:"original_url"`
+	store := storage.ConfigurateStorage(configStore)
+	defer store.Close()
+	handl = NewHandler(store, configHandler)
+
+	router := handl.NewRouter()
+
+	//Init testcases
+	pingStat := http.StatusInternalServerError
+	if store.Ping() {
+		pingStat = http.StatusOK
 	}
 
 	b := []elemBatch{
@@ -51,11 +72,20 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 	}
 	bodyBatch, _ := json.Marshal(b)
 
-	tests := []struct {
-		name string
-		args args
-		want response
-	}{
+	tests := []testCase{
+		{name: "GET Ping",
+			want: response{
+				code:    pingStat,
+				body:    "",
+				headers: map[string]string{},
+			},
+			args: args{
+				http.MethodGet,
+				bytes.NewBuffer([]byte("")),
+				host + "ping",
+				map[string]string{},
+			},
+		},
 		{name: "POST",
 			want: response{
 				code: 201,
@@ -240,22 +270,10 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 		},
 	}
 
-	var handl *Handler
-	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseUrl, dbDSN, filePath}
-
-	store := storage.ConfigurateStorage(configStore)
-	defer store.Close()
-	handl = NewHandler(store, configHandler)
-
-	//strg := storage.NewMemoryRep(filePath, baseUrl)
-	//
-	//configHandler := &Config{host, dbDSN}
-	////configStore := &storage.StoreConfig{baseUrl, dbDSN}
-	//
-	//h := NewHandler(strg, configHandler) //"http://localhost:8080"
-
-	router := handl.NewRouter()
+	cookie := &http.Cookie{
+		Name:  "userId",
+		Value: "270cc75709f72a3b3457d838fcc4c5a4.d9aedd6479de522652e585ddb308c2ce3842db212ed2be5584e6c9e6d7fc076f",
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -266,8 +284,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 			}
 			w := httptest.NewRecorder()
 
-			////handl := http.HandlerFunc(h.ShortenerHandler)
-			////handl := h.Init()
+			request.AddCookie(cookie)
 
 			// запускаем сервер
 			router.ServeHTTP(w, request)
@@ -315,6 +332,30 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 //	defer resp.Body.Close()
 //
 //	return resp, string(respBody)
+//}
+
+//func TestHandler_Ping(t *testing.T) {
+//	//var handl *Handler
+//	//configHandler := &Config{host, dbDSN}
+//	//configStore := &storage.StoreConfig{baseUrl, dbDSN, filePath}
+//	//
+//	//store := storage.ConfigurateStorage(configStore)
+//	//defer store.Close()
+//	//handl = NewHandler(store, configHandler)
+//	//router := handl.NewRouter()
+//	//
+//	//t.Run("Ping", func(t *testing.T) {
+//	//	request := httptest.NewRequest("GET", "", bytes.NewBuffer([]byte("")))
+//	//
+//	//	w := httptest.NewRecorder()
+//	//
+//	//	router.ServeHTTP(w, request)
+//	//
+//	//	assert.Equal(t, 200, w.Code)
+//	//})
+//
+//
+//
 //}
 
 // Compress сжимает слайс байт.

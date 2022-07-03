@@ -262,6 +262,11 @@ func (h *Handler) GetShortenBatch(c *gin.Context) {
 
 	err = storage.AddToCollectionBatch(h.storage, batch, userId.(string))
 
+	//Добавляем хост к идентификатору
+	for ind, el := range batch {
+		batch[ind].ShortUrl = h.host + el.ShortUrl
+	}
+
 	if err != nil {
 		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 		return
