@@ -266,8 +266,7 @@ func (h *Handler) GetShortenBatch(c *gin.Context) {
 		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	c.JSON(http.StatusOK, batch)
+	c.JSON(http.StatusCreated, batch)
 }
 
 func (h *Handler) Ping(c *gin.Context) {

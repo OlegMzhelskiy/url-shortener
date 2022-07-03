@@ -129,6 +129,10 @@ func (store StoreDB) SaveBatchLink(batch []ElemBatch, userId string) error {
 	defer stmt.Close()
 
 	for _, v := range batch {
+		longUrl, _ := store.GetByID(v.ShortUrl)
+		if longUrl != "" {
+			continue
+		}
 		if _, err = stmt.Exec(userId, v.OriginUrl, v.ShortUrl); err != nil {
 			if err = tx.Rollback(); err != nil {
 				log.Fatalf("update drivers: unable to rollback: %v", err)
