@@ -10,10 +10,12 @@ import (
 	"hash/crc32"
 	"os"
 	"strconv"
+	//"url-shortener/pkg/handler"
 )
 
 type Storager interface {
 	SaveLink(shortLink, longLink, userId string) error
+	SaveBatchLink(batch []ElemBatch, userId string) error
 	GetByID(string) (string, error)
 	GetAll() map[string]UserURL
 	NewUserID() string
@@ -32,6 +34,12 @@ type MemoryRep struct {
 type UserURL struct {
 	OriginUrl string `json:"originUrl"`
 	UserId    string `json:"userId"`
+}
+
+type ElemBatch struct {
+	CoreId    string `json:"correlation_id"`
+	OriginUrl string `json:"original_url"`
+	ShortUrl  string `json:"short_url"`
 }
 
 //Инициализация
@@ -68,6 +76,16 @@ func (m MemoryRep) SaveLink(shortURL, longURL, userId string) error {
 	return nil
 }
 
+func (m MemoryRep) SaveBatchLink(batch []ElemBatch, userId string) error {
+	for _, el := range batch {
+		err := m.SaveLink(el.ShortUrl, el.OriginUrl, userId)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (m MemoryRep) GetByID(id string) (string, error) {
 	val, ok := m.db[id]
 	if !ok {
@@ -80,6 +98,13 @@ func (m MemoryRep) GetByID(id string) (string, error) {
 func AddToCollection(m Storager, longURL, userId string) (s string, err error) {
 	shortURL := generateIdentify(longURL)
 	return shortURL, m.SaveLink(shortURL, longURL, userId)
+}
+
+func AddToCollectionBatch(m Storager, batch []ElemBatch, userId string) error {
+	for ind, el := range batch {
+		batch[ind].ShortUrl = generateIdentify(el.OriginUrl)
+	}
+	return m.SaveBatchLink(batch, userId)
 }
 
 func generateIdentify(s string) string {
@@ -172,8 +197,8 @@ func (m *MemoryRep) UserIdIsExist(UserId string) bool {
 }
 
 type PairURL struct {
-	ShortUrl    string `json:"short_url,omitempty"`
-	OriginalUrl string `json:"original_url,omitempty"`
+	ShortUrl    string `json:"short_url,omitempty" db:"short_url"`
+	OriginalUrl string `json:"original_url,omitempty" db:"origin_url"`
 }
 
 func (m MemoryRep) GetUserUrls(UserId string) []PairURL {

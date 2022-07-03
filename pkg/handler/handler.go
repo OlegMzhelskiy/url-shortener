@@ -52,10 +52,16 @@ func (h *Handler) NewRouter() *gin.Engine {
 	router.GET("/", h.getEmptyID)
 	router.GET("/:id", h.getLinkByID)
 	router.GET("/all", h.PrintAll)
-	router.POST("/api/shorten", h.GetShorten)
-	router.GET("/api/user/urls", h.GetUserUrls)
+	//router.POST("/api/shorten", h.GetShorten)
+	//router.GET("/api/user/urls", h.GetUserUrls)
 	router.GET("/ping", h.Ping)
 
+	apiGroup := router.Group("/api")
+	{
+		apiGroup.POST("/shorten", h.GetShorten)
+		apiGroup.GET("/user/urls", h.GetUserUrls)
+		apiGroup.POST("/shorten/batch", h.GetShortenBatch)
+	}
 	return router
 }
 
@@ -118,7 +124,7 @@ func (h *Handler) getLinkByID(c *gin.Context) {
 }
 
 func (h *Handler) GetShorten(c *gin.Context) {
-	fmt.Printf("Получен запрос POST %s\n", c.Request.RequestURI)
+	//fmt.Printf("Получен запрос POST %s\n", c.Request.RequestURI)
 	body, err := io.ReadAll(c.Request.Body)
 	defer c.Request.Body.Close()
 	if err != nil {
@@ -219,7 +225,7 @@ func gzipHandle() gin.HandlerFunc {
 func (h *Handler) GetUserUrls(c *gin.Context) {
 	userId, ex := c.Get("userId")
 	if ex == false {
-		http.Error(c.Writer, "Отсутствует user id в контексте", http.StatusNoContent)
+		http.Error(c.Writer, "Cookies doesn't content user id", http.StatusNoContent)
 		return
 	}
 	masURLs := h.storage.GetUserUrls(userId.(string))
@@ -230,8 +236,41 @@ func (h *Handler) GetUserUrls(c *gin.Context) {
 	c.JSON(http.StatusOK, masURLs)
 }
 
+func (h *Handler) GetShortenBatch(c *gin.Context) {
+	var batch []storage.ElemBatch
+
+	fmt.Printf("Получен запрос POST %s\n", c.Request.RequestURI)
+	body, err := io.ReadAll(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(c.Writer, "The query must contain a short URL", http.StatusBadRequest)
+		return
+	}
+	if err := json.Unmarshal(body, &batch); err != nil {
+		http.Error(c.Writer, "Error: unmarshal body ", http.StatusInternalServerError) //panic(err)
+	}
+
+	userId, ex := c.Get("userId")
+	if ex == false {
+		http.Error(c.Writer, "Cookies doesn't content user id", http.StatusNoContent)
+		return
+	}
+
+	err = storage.AddToCollectionBatch(h.storage, batch, userId.(string))
+
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	c.JSON(http.StatusOK, batch)
+}
+
 func (h *Handler) Ping(c *gin.Context) {
-	//db := storage.NewStoreDB(h.dbDSN)
 	if h.storage.Ping() == false {
 		c.Status(http.StatusInternalServerError)
 		return
