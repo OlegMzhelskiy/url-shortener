@@ -9,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
 	"io"
 	"net/http"
 	"strings"
-
 	//"url-shortener/cmd/shortener"
 	"url-shortener/storage"
 )
@@ -174,9 +174,6 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-type gzipReader struct {
-}
-
 func gzipHandle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		fmt.Println("Это gzipHandle")
@@ -234,8 +231,8 @@ func (h *Handler) GetUserUrls(c *gin.Context) {
 }
 
 func (h *Handler) Ping(c *gin.Context) {
-	db := storage.NewStoreDB(h.dbDSN)
-	if db.Ping() == false {
+	//db := storage.NewStoreDB(h.dbDSN)
+	if h.storage.Ping() == false {
 		c.Status(http.StatusInternalServerError)
 		return
 	}

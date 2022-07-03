@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	"log"
 	"os"
@@ -13,6 +14,10 @@ import (
 )
 
 func main() {
+
+	if gin.IsDebugging() == false {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	//host := "localhost:8080"
 	//baseUrl := "http://" + host
@@ -43,16 +48,25 @@ func main() {
 	host = getVarValue(*flagHost, "SERVER_ADDRESS", "localhost:8080")
 	baseUrl = getVarValue(*flagBaseUrl, "BASE_URL", "http://"+host)
 	storagePath = getVarValue(*flagFilePath, "FILE_STORAGE_PATH", "")
-	dbDSN = getVarValue(*flagDBDSN, "DATABASE_DSN", "host=localhost dbname=shortener")
+	dbDSN = getVarValue(*flagDBDSN, "DATABASE_DSN", "host=localhost dbname=shortener user=postgres password=123 sslmode=disable")
 
 	if strings.HasSuffix(baseUrl, "/") == false {
 		baseUrl += "/"
 	}
 
+	var handl *handler.Handler
 	configHandler := &handler.Config{baseUrl, dbDSN}
+	configStore := &storage.StoreConfig{baseUrl, dbDSN}
 
-	storageDB := storage.NewMemoryRep(storagePath, baseUrl)
-	handl := handler.NewHandler(storageDB, configHandler)
+	postgreDB, err := storage.NewStoreDB(configStore)
+	if err != nil || postgreDB.Ping() == false {
+		memoryDB := storage.NewMemoryRep(storagePath, baseUrl)
+		handl = handler.NewHandler(memoryDB, configHandler)
+	} else {
+		defer postgreDB.Close()
+		handl = handler.NewHandler(postgreDB, configHandler)
+	}
+
 	router := handl.NewRouter()
 
 	fmt.Printf("Host: %s\n", host)
@@ -77,3 +91,11 @@ func getVarValue(flagValue, envVarName, defValue string) string {
 	}
 	return varVal
 }
+
+//func getStorageDB(storagePath, baseUrl string) *storage.Storager{
+//storageDB, err := storage.NewStoreDB(dbDSN)
+//if err != nil || storageDB.Ping() == false {
+//	storageDB := storage.NewMemoryRep(storagePath, baseUrl)
+//}
+//	return storageDB
+//}

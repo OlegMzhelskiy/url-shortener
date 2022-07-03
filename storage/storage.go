@@ -19,6 +19,7 @@ type Storager interface {
 	NewUserID() string
 	UserIdIsExist(userId string) bool
 	GetUserUrls(userId string) []PairURL
+	Ping() bool
 }
 
 type MemoryRep struct {
@@ -148,6 +149,13 @@ func (m *MemoryRep) ReadRepoFromFile() error {
 }
 
 func (m *MemoryRep) NewUserID() string {
+	id := generateUserID()
+	m.usersId[id]++
+	return id
+	//return base64.StdEncoding.EncodeToString(b)
+}
+
+func generateUserID() string {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -155,9 +163,7 @@ func (m *MemoryRep) NewUserID() string {
 		return ""
 	}
 	id := hex.EncodeToString(b)
-	m.usersId[id]++
 	return id
-	//return base64.StdEncoding.EncodeToString(b)
 }
 
 //Проверка что такой User Id выдавался
@@ -179,4 +185,8 @@ func (m MemoryRep) GetUserUrls(UserId string) []PairURL {
 		}
 	}
 	return masUrls
+}
+
+func (m MemoryRep) Ping() bool {
+	return false
 }
