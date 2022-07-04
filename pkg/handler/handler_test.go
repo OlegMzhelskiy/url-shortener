@@ -21,6 +21,10 @@ var short1 = host + "bhgaedbedj"
 var url2 = "https://proglib.io/p/go-programming"
 var short2 = host + "bdifachdif"
 var dbDSN = ""
+var batch = []elemBatch{
+	{"1ya", "https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/"},
+	{"2cgo", "https://habr.com/ru/company/intel/blog/275709/"},
+}
 
 type args struct {
 	method  string
@@ -66,11 +70,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 		pingStat = http.StatusOK
 	}
 
-	b := []elemBatch{
-		{"1ya", "https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/"},
-		{"2cgo", "https://habr.com/ru/company/intel/blog/275709/"},
-	}
-	bodyBatch, _ := json.Marshal(b)
+	bodyBatch, _ := json.Marshal(batch)
 
 	tests := []testCase{
 		{name: "GET Ping",
@@ -314,6 +314,115 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 			for key, value := range tt.want.headers {
 				assert.Equal(t, value, w.Header().Get(key))
 			}
+		})
+	}
+}
+
+func TestHandler_PrintAll(t *testing.T) {
+
+	var handl *Handler
+	configHandler := &Config{host, dbDSN}
+	configStore := &storage.StoreConfig{baseUrl, dbDSN, filePath}
+
+	store := storage.ConfigurateStorage(configStore)
+	defer store.Close()
+	handl = NewHandler(store, configHandler)
+
+	router := handl.NewRouter()
+
+	bodyBatch, _ := json.Marshal(batch)
+
+	tests := []testCase{
+		{name: "---", //вставка данных для следующего кейса
+			want: response{
+				code:    201,
+				body:    "[{\"correlation_id\":\"1ya\",\"original_url\":\"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/\",\"short_url\":\"http://localhost:8080/ghafjfgeb\"},{\"correlation_id\":\"2cgo\",\"original_url\":\"https://habr.com/ru/company/intel/blog/275709/\",\"short_url\":\"http://localhost:8080/badbgeicic\"}]",
+				headers: map[string]string{
+					//	"Content-Type": "application/json; charset=utf-8",
+				},
+			},
+			args: args{
+				http.MethodPost,
+				bytes.NewBuffer(bodyBatch),
+				host + "api/shorten/batch",
+				map[string]string{},
+			},
+		},
+		{name: "GET ALL",
+			want: response{
+				code:    200,
+				body:    `{"badbgeicic":{"originUrl":"https://habr.com/ru/company/intel/blog/275709/","userId":"5502d0741bd614878a8815c4930b0686"},"ghafjfgeb":{"originUrl":"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/","userId":"5502d0741bd614878a8815c4930b0686"}}`,
+				headers: map[string]string{"Content-Type": "application/json; charset=utf-8"},
+			},
+			args: args{
+				http.MethodGet,
+				bytes.NewBuffer([]byte("")),
+				host + "all",
+				map[string]string{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			request := httptest.NewRequest(tt.args.method, tt.args.url, tt.args.body)
+			for key, value := range tt.args.headers {
+				request.Header.Add(key, value)
+			}
+			w := httptest.NewRecorder()
+
+			//request.AddCookie(cookie)
+
+			// запускаем сервер
+			router.ServeHTTP(w, request)
+
+			if tt.name == "---" {
+				return
+			}
+
+			// проверяем код ответа
+			assert.Equal(t, tt.want.code, w.Code)
+
+			var masbat map[string]storage.UserURL
+			var expect map[string]storage.UserURL
+
+			//получаем и проверяем тело запроса
+			var bodyByte []byte
+			var err error
+			if strings.Contains(w.Header().Get("Content-Encoding"), "gzip") {
+				bodyByte, err = Decompress(w.Body.Bytes())
+				//if !assert.Error(t, err, "Ошибка декомпрессии тела ответа") {
+				//	body = string(bodyByte)
+				//}
+				if err != nil {
+					assert.Fail(t, "Ошибка декомпрессии: "+err.Error())
+				}
+			} else {
+				bodyByte = w.Body.Bytes()
+			}
+
+			err = json.Unmarshal(bodyByte, &masbat)
+			if err != nil {
+				assert.Fail(t, "Ошибка декодирования: "+err.Error())
+			}
+
+			err = json.Unmarshal([]byte(tt.want.body), &expect)
+			if err != nil {
+				assert.Fail(t, "Ошибка декодирования: "+err.Error())
+			}
+
+			//проверяем элементы мап
+			for key, val := range expect {
+				el := masbat[key]
+				assert.Equal(t, el.OriginUrl, val.OriginUrl)
+			}
+
+			// заголовки ответа
+			for key, value := range tt.want.headers {
+				assert.Equal(t, value, w.Header().Get(key))
+			}
+
 		})
 	}
 }
