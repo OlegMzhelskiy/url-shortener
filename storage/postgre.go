@@ -95,15 +95,18 @@ func (store StoreDB) SaveLink(shortURL, longURL, userId string) error {
 	if store.db.DB == nil {
 		return errors.New("You haven`t opened the database connection")
 	}
-	url, _ := store.GetByID(shortURL)
+	//url, _ := store.GetByID(shortURL)
 
 	//Если записи с таким url нет то добавим
-	if url == "" {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		_, err := store.db.ExecContext(ctx, "INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)", userId, longURL, shortURL)
+	//if url == "" {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := store.db.ExecContext(ctx, "INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)", userId, longURL, shortURL)
+	if err != nil {
+		//return fmt.Errorf(`%w`, err)
 		return err
 	}
+	//}
 	return nil
 }
 

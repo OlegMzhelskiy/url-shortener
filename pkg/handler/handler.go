@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgerrcode"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"io"
 	"net/http"
@@ -86,16 +88,18 @@ func (h *Handler) addLink(c *gin.Context) {
 		return
 	}
 
+	statusCode := http.StatusCreated
 	shortURL, err := storage.AddToCollection(h.storage, string(body), userId.(string))
 	if err != nil {
-		fmt.Printf("Ошибка при добавлении в коллекцию: %s \n", err)
+		if isUniqueViolationError(err) {
+			statusCode = http.StatusConflict
+		} else {
+			fmt.Printf("Ошибка при добавлении в коллекцию: %s \n", err)
+			statusCode = http.StatusInternalServerError
+		}
 	}
-	//w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	c.Header("Content-Type", "text/html; charset=UTF-8")
-	c.String(http.StatusCreated, h.host+shortURL)
-
-	fmt.Println("Это Post")
-	//c.Writer.Write([]byte("<h1>Привет это POST!</h1>"))
+	c.String(statusCode, h.host+shortURL)
 	//c.IndentedJSON(http.StatusOK, struct{ Status string }{Status: "ok"})
 }
 
@@ -124,7 +128,6 @@ func (h *Handler) getLinkByID(c *gin.Context) {
 }
 
 func (h *Handler) GetShorten(c *gin.Context) {
-	//fmt.Printf("Получен запрос POST %s\n", c.Request.RequestURI)
 	body, err := io.ReadAll(c.Request.Body)
 	defer c.Request.Body.Close()
 	if err != nil {
@@ -148,17 +151,32 @@ func (h *Handler) GetShorten(c *gin.Context) {
 		return
 	}
 
+	statusCode := http.StatusCreated
 	shortURL, err := storage.AddToCollection(h.storage, value.Url, userId.(string))
-
 	if err != nil {
-		http.Error(c.Writer, err.Error(), http.StatusNotFound)
-		return
+		if isUniqueViolationError(err) {
+			statusCode = http.StatusConflict
+		} else {
+			http.Error(c.Writer, err.Error(), http.StatusInternalServerError) //http.StatusNotFound)
+			return
+		}
 	}
 	result := struct {
 		Url string `json:"result"`
 	}{h.host + shortURL}
 	//json.Marshal(result)
-	c.JSON(http.StatusCreated, result)
+	c.JSON(statusCode, result)
+}
+
+func isUniqueViolationError(err error) bool {
+	var pqError *pq.Error
+	if errors.As(err, &pqError) { //&& errors.Is(err, pqErr3) { //err.Code == pgerrcode.UniqueViolation {
+		pqerr, _ := err.(*pq.Error)
+		if pqerr.Code == pgerrcode.UniqueViolation {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handler) getEmptyID(c *gin.Context) {
