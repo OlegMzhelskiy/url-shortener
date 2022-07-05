@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	_ "github.com/jackc/pgx"
 	"github.com/jmoiron/sqlx"
 	"log"
 	"time"
-	//"database/sql"
-	"fmt"
-	_ "github.com/jackc/pgx"
 	//_ "github.com/lib/pq"
+	//"database/sql"
 )
 
 type StoreDB struct {
@@ -49,7 +49,9 @@ func NewStoreDB(config *StoreConfig) (*StoreDB, error) {
 }
 
 func (store *StoreDB) Close() {
-	store.db.Close()
+	if store.db != nil {
+		store.db.Close()
+	}
 }
 
 func (store *StoreDB) Ping() bool {
@@ -92,7 +94,7 @@ func (store StoreDB) GetAll() map[string]UserURL {
 }
 
 func (store StoreDB) SaveLink(shortURL, longURL, userId string) error {
-	if store.db.DB == nil {
+	if store.db == nil {
 		return errors.New("You haven`t opened the database connection")
 	}
 	//url, _ := store.GetByID(shortURL)
@@ -111,16 +113,17 @@ func (store StoreDB) SaveLink(shortURL, longURL, userId string) error {
 }
 
 func (store StoreDB) SaveBatchLink(batch []ElemBatch, userId string) error {
-	if store.db.DB == nil {
+	if store.db == nil {
 		return errors.New("You haven`t opened the database connection")
 	}
 	tx, err := store.db.Begin()
 	if err != nil {
 		return err
 	}
-
-	//stmt := tx.StmtContext(ctx, insertStmt)
-	stmt, err := tx.Prepare("INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stmt := tx.StmtContext(ctx, store.insertStmt)
+	//stmt, err := tx.Prepare("INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)")
 	if err != nil {
 		return err
 	}
@@ -147,7 +150,7 @@ func (store StoreDB) SaveBatchLink(batch []ElemBatch, userId string) error {
 }
 
 func (store StoreDB) GetByID(id string) (string, error) {
-	if store.db.DB == nil {
+	if store.db == nil {
 		return "", errors.New("You haven`t opened the database connection")
 	}
 	ctx, cancel := context.WithCancel(context.Background())

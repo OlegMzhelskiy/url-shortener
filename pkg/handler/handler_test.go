@@ -132,7 +132,7 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 				map[string]string{},
 			},
 		},
-		{name: "GET Error",
+		{name: "GET non-existent URL",
 			want: response{
 				code:    404,
 				body:    "not found",
@@ -145,19 +145,19 @@ func TestHandler_ShortenerHandler(t *testing.T) {
 				map[string]string{},
 			},
 		},
-		{name: "GET Empty ID",
-			want: response{
-				code:    400,
-				body:    "The query parameter id is missing\n",
-				headers: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
-			},
-			args: args{
-				http.MethodGet,
-				new(bytes.Buffer),
-				host,
-				map[string]string{},
-			},
-		},
+		//{name: "GET Empty ID",
+		//	want: response{
+		//		code:    400,
+		//		body:    "The query parameter id is missing\n",
+		//		headers: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
+		//	},
+		//	args: args{
+		//		http.MethodGet,
+		//		new(bytes.Buffer),
+		//		host,
+		//		map[string]string{},
+		//	},
+		//},
 		{name: "GET Empty Request",
 			want: response{
 				code:    400,

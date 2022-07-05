@@ -33,6 +33,15 @@ type Config struct {
 	DBDSN string
 }
 
+type Link struct {
+	URL string `json:"url"`
+}
+
+type gzipWriter struct {
+	gin.ResponseWriter
+	Writer io.Writer
+}
+
 //func NewHandler(s storage.Storager, host string) *Handler {
 func NewHandler(s storage.Storager, config *Config) *Handler {
 	return &Handler{
@@ -138,9 +147,8 @@ func (h *Handler) GetShorten(c *gin.Context) {
 		http.Error(c.Writer, "The query must contain a short URL", http.StatusBadRequest)
 		return
 	}
-	value := struct {
-		Url string `json:"url"`
-	}{}
+
+	var value Link
 	if err := json.Unmarshal(body, &value); err != nil {
 		http.Error(c.Writer, "Error: unmarshal body ", http.StatusInternalServerError) //panic(err)
 	}
@@ -152,7 +160,7 @@ func (h *Handler) GetShorten(c *gin.Context) {
 	}
 
 	statusCode := http.StatusCreated
-	shortURL, err := storage.AddToCollection(h.storage, value.Url, userId.(string))
+	shortURL, err := storage.AddToCollection(h.storage, value.URL, userId.(string))
 	if err != nil {
 		if isUniqueViolationError(err) {
 			statusCode = http.StatusConflict
@@ -186,11 +194,6 @@ func (h *Handler) getEmptyID(c *gin.Context) {
 
 func (h *Handler) PrintAll(c *gin.Context) {
 	c.JSON(http.StatusOK, h.storage.GetAll())
-}
-
-type gzipWriter struct {
-	gin.ResponseWriter
-	Writer io.Writer
 }
 
 func (w gzipWriter) Write(b []byte) (int, error) {
