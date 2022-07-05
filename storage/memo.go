@@ -185,7 +185,7 @@ func (m *MemoryRep) NewUserID() string {
 	id := generateUserID()
 	m.usersId[id]++
 	return id
-	//return base64.StdEncoding.EncodeToString(b)
+	//return base64.StdEncoding.EncodeToString(b) //
 }
 
 func (m *MemoryRep) UserIdIsExist(UserId string) bool {
