@@ -114,7 +114,7 @@ func (store StoreDB) SaveLink(shortURL, longURL, userId string) error {
 
 func (store StoreDB) SaveBatchLink(batch []ElemBatch, userId string) error {
 	if store.db == nil {
-		return errors.New("You haven`t opened the database connection")
+		return errors.New("you haven`t opened the database connection")
 	}
 	tx, err := store.db.Begin()
 	if err != nil {
@@ -179,7 +179,7 @@ func (store *StoreDB) NewUserID() string {
 
 	id, err := result.LastInsertId()
 	if err == nil {
-		fmt.Println("Идентификатор новой записи usersToken %s", id)
+		fmt.Printf("Идентификатор новой записи usersToken %d", id)
 	}
 	return userId
 }

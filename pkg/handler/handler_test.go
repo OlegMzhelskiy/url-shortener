@@ -427,6 +427,21 @@ func TestHandler_PrintAll(t *testing.T) {
 	}
 }
 
+//func TestHandler_ValidMAC(t *testing.T) {
+//	b := make([]byte, 16)
+//	_, err := rand.Read(b)
+//	if err != nil {
+//		assert.Fail(t, "Не удалось сформировать идентификатор пользователя: %v\n", err)
+//
+//	}
+//	id := hex.EncodeToString(b)
+//
+//	hashf := hmac.New(sha256.New, secretkey)
+//	hashf.Write([]byte(id))
+//	hsum := hex.EncodeToString(hashf.Sum(nil))
+//	assert.Equal(t, ValidMAC([]byte(id), []byte(hsum), secretkey), true)
+//}
+
 //func testRequest(t *testing.T, ts *httptest.Server, method, path string, body *bytes.Buffer) (*http.Response, string) {
 //	req, err := http.NewRequest(method, path, body)
 //	require.NoError(t, err)
