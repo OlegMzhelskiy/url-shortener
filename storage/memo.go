@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -49,18 +50,18 @@ func NewMemoryRep(fileStoragePath, baseUrl string) *MemoryRep {
 	return rep
 }
 
-func (m MemoryRep) GetAll() map[string]UserURL {
+func (m MemoryRep) GetAll(ctx context.Context) map[string]UserURL {
 	return m.db
 }
 
-func (m MemoryRep) SaveLink(shortURL, longURL, userId string) error {
+func (m MemoryRep) SaveLink(ctx context.Context, shortURL, longURL, userID string) error {
 	_, ok := m.db[shortURL]
 	if !ok {
-		usUrl := UserURL{longURL, userId}
-		m.db[shortURL] = usUrl
+		usURL := UserURL{longURL, userID}
+		m.db[shortURL] = usURL
 
 		//err := m.WriteRepoFromFile() //При сохранении нового URL запишем в файл
-		elem := elementCollection{shortURL, usUrl}
+		elem := elementCollection{shortURL, usURL}
 		err := m.WriteElementFromFile(elem)
 
 		if err != nil {
@@ -70,9 +71,9 @@ func (m MemoryRep) SaveLink(shortURL, longURL, userId string) error {
 	return nil
 }
 
-func (m MemoryRep) SaveBatchLink(batch []ElemBatch, userId string) error {
+func (m MemoryRep) SaveBatchLink(ctx context.Context, batch []ElemBatch, userID string) error {
 	for _, el := range batch {
-		err := m.SaveLink(el.ShortUrl, el.OriginUrl, userId)
+		err := m.SaveLink(ctx, el.ShortURL, el.OriginURL, userID)
 		if err != nil {
 			return err
 		}
@@ -80,12 +81,12 @@ func (m MemoryRep) SaveBatchLink(batch []ElemBatch, userId string) error {
 	return nil
 }
 
-func (m MemoryRep) GetByID(id string) (string, error) {
+func (m MemoryRep) GetByID(ctx context.Context, id string) (string, error) {
 	val, ok := m.db[id]
 	if !ok {
 		return "", errors.New("not found")
 	}
-	return val.OriginUrl, nil
+	return val.OriginURL, nil
 }
 
 func (m MemoryRep) WriteElementFromFile(elem elementCollection) error {
@@ -181,22 +182,22 @@ func (m *MemoryRep) ReadRepoFromFile() error {
 	return nil
 }
 
-func (m *MemoryRep) NewUserID() string {
+func (m *MemoryRep) NewUserID(ctx context.Context) string {
 	id := generateUserID()
 	m.usersId[id]++
 	return id
 	//return base64.StdEncoding.EncodeToString(b) //
 }
 
-func (m *MemoryRep) UserIdIsExist(UserId string) bool {
-	return m.usersId[UserId] > 0
+func (m *MemoryRep) UserIdIsExist(ctx context.Context, userID string) bool {
+	return m.usersId[userID] > 0
 }
 
-func (m MemoryRep) GetUserUrls(UserId string) []PairURL {
+func (m MemoryRep) GetUserUrls(ctx context.Context, userID string) []PairURL {
 	masUrls := make([]PairURL, 0)
 	for key, val := range m.db {
-		if val.UserId == UserId {
-			newPair := PairURL{m.baseUrl + key, val.OriginUrl}
+		if val.UserId == userID {
+			newPair := PairURL{m.baseUrl + key, val.OriginURL}
 			masUrls = append(masUrls, newPair)
 		}
 	}

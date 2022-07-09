@@ -13,6 +13,10 @@ import (
 	//"database/sql"
 )
 
+var (
+	ErrDBConnection = errors.New("you haven`t opened the database connection")
+)
+
 type StoreDB struct {
 	db         *sqlx.DB
 	config     *StoreConfig
@@ -62,12 +66,8 @@ func (store *StoreDB) Ping() bool {
 	return true
 }
 
-func (store StoreDB) GetAll() map[string]UserURL {
+func (store StoreDB) GetAll(ctx context.Context) map[string]UserURL {
 	urls := make(map[string]UserURL)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	rows, err := store.db.QueryContext(ctx, "SELECT user_id, origin_url, short_url FROM urls")
 
 	if err == nil {
@@ -93,16 +93,15 @@ func (store StoreDB) GetAll() map[string]UserURL {
 	return urls
 }
 
-func (store StoreDB) SaveLink(shortURL, longURL, userId string) error {
+func (store StoreDB) SaveLink(ctx context.Context, shortURL, longURL, userId string) error {
 	if store.db == nil {
-		return errors.New("You haven`t opened the database connection")
+		return ErrDBConnection //errors.New("you haven`t opened the database connection")
 	}
 	//url, _ := store.GetByID(shortURL)
 
 	//Если записи с таким url нет то добавим
 	//if url == "" {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	_, err := store.db.ExecContext(ctx, "INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)", userId, longURL, shortURL)
 	if err != nil {
 		//return fmt.Errorf(`%w`, err)
@@ -112,29 +111,28 @@ func (store StoreDB) SaveLink(shortURL, longURL, userId string) error {
 	return nil
 }
 
-func (store StoreDB) SaveBatchLink(batch []ElemBatch, userId string) error {
+func (store StoreDB) SaveBatchLink(ctx context.Context, batch []ElemBatch, userId string) error {
 	if store.db == nil {
-		return errors.New("you haven`t opened the database connection")
+		return ErrDBConnection //errors.New("you haven`t opened the database connection")
 	}
 	tx, err := store.db.Begin()
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	stmt := tx.StmtContext(ctx, store.insertStmt)
 	//stmt, err := tx.Prepare("INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)")
-	if err != nil {
-		return err
-	}
+	//if err != nil {
+	//	return err
+	//}
 	defer stmt.Close()
 
 	for _, v := range batch {
-		longUrl, _ := store.GetByID(v.ShortUrl)
-		if longUrl != "" {
+		longURL, _ := store.GetByID(ctx, v.ShortURL)
+		if longURL != "" {
 			continue
 		}
-		if _, err = stmt.Exec(userId, v.OriginUrl, v.ShortUrl); err != nil {
+		if _, err = stmt.Exec(userId, v.OriginURL, v.ShortURL); err != nil {
 			if err = tx.Rollback(); err != nil {
 				log.Fatalf("update drivers: unable to rollback: %v", err)
 			}
@@ -149,30 +147,24 @@ func (store StoreDB) SaveBatchLink(batch []ElemBatch, userId string) error {
 	return nil
 }
 
-func (store StoreDB) GetByID(id string) (string, error) {
+func (store StoreDB) GetByID(ctx context.Context, id string) (string, error) {
 	if store.db == nil {
-		return "", errors.New("You haven`t opened the database connection")
+		return "", ErrDBConnection //errors.New("you haven`t opened the database connection")
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var originUrl string
+	var originURL string
 	//err := store.db.QueryRowContext(ctx, "SELECT origin_url FROM urls WHERE short_url = $1 LIMIT 1", id).Scan(&originUrl)
-	err := store.db.GetContext(ctx, &originUrl, "SELECT origin_url FROM urls WHERE short_url = $1 LIMIT 1", id)
+	err := store.db.GetContext(ctx, &originURL, "SELECT origin_url FROM urls WHERE short_url = $1 LIMIT 1", id)
 
 	if err != nil { //sql.ErrNoRows
 		return "", err
 	}
-	return originUrl, nil
+	return originURL, nil
 }
 
-func (store *StoreDB) NewUserID() string {
-	userId := generateUserID()
+func (store *StoreDB) NewUserID(ctx context.Context) string {
+	userID := generateUserID()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	result, err := store.db.ExecContext(ctx, "INSERT INTO users_token(user_id) VALUES($1)", userId)
+	result, err := store.db.ExecContext(ctx, "INSERT INTO users_token(user_id) VALUES($1)", userID)
 	if err != nil {
 		return ""
 	}
@@ -181,14 +173,11 @@ func (store *StoreDB) NewUserID() string {
 	if err == nil {
 		fmt.Printf("Идентификатор новой записи usersToken %d", id)
 	}
-	return userId
+	return userID
 }
 
-func (store StoreDB) UserIdIsExist(UserId string) bool {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	rows, err := store.db.QueryContext(ctx, "SELECT user_id FROM users_token WHERE user_id = $1", UserId)
+func (store StoreDB) UserIdIsExist(ctx context.Context, UserID string) bool {
+	rows, err := store.db.QueryContext(ctx, "SELECT user_id FROM users_token WHERE user_id = $1", UserID)
 	if err != nil {
 		return false
 	}
@@ -196,11 +185,8 @@ func (store StoreDB) UserIdIsExist(UserId string) bool {
 	return rows.Next()
 }
 
-func (store StoreDB) GetUserUrls(UserId string) []PairURL {
+func (store StoreDB) GetUserUrls(ctx context.Context, UserID string) []PairURL {
 	var urls []PairURL
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	//rows, err := store.db.QueryContext(ctx, "SELECT origin_url, short_url FROM urls WHERE userId = $1", UserId)
 	//if err == nil {
@@ -225,7 +211,7 @@ func (store StoreDB) GetUserUrls(UserId string) []PairURL {
 	//	}
 	//}
 
-	err := store.db.SelectContext(ctx, &urls, "SELECT origin_url, short_url FROM urls WHERE user_id = $1", UserId)
+	err := store.db.SelectContext(ctx, &urls, "SELECT origin_url, short_url FROM urls WHERE user_id = $1", UserID)
 	if err != nil {
 		fmt.Println("Error exec query: " + err.Error())
 	}

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -10,59 +11,59 @@ import (
 )
 
 type Storager interface {
-	SaveLink(shortLink, longLink, userId string) error
-	SaveBatchLink(batch []ElemBatch, userId string) error
-	GetByID(string) (string, error)
-	GetAll() map[string]UserURL
-	NewUserID() string
-	UserIdIsExist(userId string) bool //Проверка что такой User Id выдавался
-	GetUserUrls(userId string) []PairURL
+	SaveLink(ctx context.Context, shortLink, longLink, userId string) error
+	SaveBatchLink(ctx context.Context, batch []ElemBatch, userId string) error
+	GetByID(ctx context.Context, id string) (string, error)
+	GetAll(ctx context.Context) map[string]UserURL
+	NewUserID(ctx context.Context) string
+	UserIdIsExist(ctx context.Context, userID string) bool //Проверка что такой User Id выдавался
+	GetUserUrls(ctx context.Context, userID string) []PairURL
 	Ping() bool
 	Close()
 }
 
 type StoreConfig struct {
-	BaseUrl         string
+	BaseURL         string
 	DBDNS           string
 	FilestoragePath string
 }
 
 type PairURL struct {
-	ShortUrl    string `json:"short_url,omitempty" db:"short_url"`
-	OriginalUrl string `json:"original_url,omitempty" db:"origin_url"`
+	ShortURL    string `json:"short_url,omitempty" db:"short_url"`
+	OriginalURL string `json:"original_url,omitempty" db:"origin_url"`
 }
 
 type UserURL struct {
-	OriginUrl string `json:"originUrl"`
+	OriginURL string `json:"originUrl"`
 	UserId    string `json:"userId"`
 }
 
 type ElemBatch struct {
 	CoreId    string `json:"correlation_id"`
-	OriginUrl string `json:"original_url"`
-	ShortUrl  string `json:"short_url"`
+	OriginURL string `json:"original_url"`
+	ShortURL  string `json:"short_url"`
 }
 
 func ConfigurateStorage(c *StoreConfig) Storager {
 	postgreDB, err := NewStoreDB(c)
 	if err != nil || postgreDB.Ping() == false {
-		memoryDB := NewMemoryRep(c.FilestoragePath, c.BaseUrl)
+		memoryDB := NewMemoryRep(c.FilestoragePath, c.BaseURL)
 		return memoryDB
 	}
 	return postgreDB
 }
 
 //Функция которая принимает в качестве аргумента именно интерфейс
-func AddToCollection(m Storager, longURL, userId string) (s string, err error) {
+func AddToCollection(ctx context.Context, m Storager, longURL, userID string) (s string, err error) {
 	shortURL := generateIdentify(longURL)
-	return shortURL, m.SaveLink(shortURL, longURL, userId)
+	return shortURL, m.SaveLink(ctx, shortURL, longURL, userID)
 }
 
-func AddToCollectionBatch(m Storager, batch []ElemBatch, userId string) error {
+func AddToCollectionBatch(ctx context.Context, m Storager, batch []ElemBatch, userID string) error {
 	for ind, el := range batch {
-		batch[ind].ShortUrl = generateIdentify(el.OriginUrl)
+		batch[ind].ShortURL = generateIdentify(el.OriginURL)
 	}
-	return m.SaveBatchLink(batch, userId)
+	return m.SaveBatchLink(ctx, batch, userID)
 }
 
 func generateIdentify(s string) string {

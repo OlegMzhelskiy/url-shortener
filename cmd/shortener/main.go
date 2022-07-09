@@ -15,7 +15,7 @@ import (
 
 func main() {
 
-	if gin.IsDebugging() == false {
+	if !gin.IsDebugging() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -23,12 +23,12 @@ func main() {
 	//baseUrl := "http://" + host
 
 	var host string
-	var baseUrl string
+	var baseURL string
 	var storagePath string
 	var dbDSN string
 
 	flagHost := flag.String("a", "", "server address")        //SERVER_ADDRESS
-	flagBaseUrl := flag.String("b", "", "base url")           //BASE_URL
+	flagBaseURL := flag.String("b", "", "base url")           //BASE_URL
 	flagFilePath := flag.String("f", "", "file storage path") //FILE_STORAGE_PATH
 	flagDBDSN := flag.String("d", "", "DB connection")        //DATABASE_DSN
 	flag.Parse()
@@ -46,17 +46,17 @@ func main() {
 		}
 	}
 	host = getVarValue(*flagHost, "SERVER_ADDRESS", "localhost:8080")
-	baseUrl = getVarValue(*flagBaseUrl, "BASE_URL", "http://"+host)
+	baseURL = getVarValue(*flagBaseURL, "BASE_URL", "http://"+host)
 	storagePath = getVarValue(*flagFilePath, "FILE_STORAGE_PATH", "")
 	dbDSN = getVarValue(*flagDBDSN, "DATABASE_DSN", "host=localhost dbname=shortener user=postgres password=123 sslmode=disable")
 
-	if strings.HasSuffix(baseUrl, "/") == false {
-		baseUrl += "/"
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL += "/"
 	}
 
 	var handl *handler.Handler
-	configHandler := &handler.Config{baseUrl, dbDSN}
-	configStore := &storage.StoreConfig{baseUrl, dbDSN, storagePath}
+	configHandler := &handler.Config{baseURL, dbDSN}
+	configStore := &storage.StoreConfig{baseURL, dbDSN, storagePath}
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
@@ -76,8 +76,8 @@ func main() {
 	fmt.Printf("Host: %s\n", host)
 	//defer strg.WriteRepoFromFile() //Запишем в файл по завершении работы сервера
 
-	serv := new(server.Server) //нужна ли мне вообще структура Server?
-	log.Fatal(serv.Run(host, router))
+	srv := new(server.Server) //нужна ли мне вообще структура Server?
+	log.Fatal(srv.Run(host, router))
 
 	//log.Fatal(router.Run(host)) //или можно так запустить?
 }
@@ -88,7 +88,7 @@ func getVarValue(flagValue, envVarName, defValue string) string {
 	varVal := flagValue
 	if len(flagValue) == 0 {
 		varVal, ok = os.LookupEnv(envVarName) //URLdata.json
-		if ok == false || varVal == "" {
+		if !ok || varVal == "" {
 			fmt.Printf("Не задано значение переменной окружения %s\n", envVarName)
 			varVal = defValue
 		}
