@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - Sprint2
+      - Sprint3
 
 jobs:
 

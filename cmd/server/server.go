@@ -13,5 +13,6 @@ func (s Server) Run(host string, h http.Handler) error {
 		Addr:    host,
 		Handler: h,
 	}
+
 	return s.httpServer.ListenAndServe()
 }

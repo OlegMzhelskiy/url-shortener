@@ -1,70 +1,69 @@
 package storage
 
 import (
-	"bufio"
-	"encoding/json"
-	"errors"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"hash/crc32"
-	"os"
 	"strconv"
+	//"url-shortener/pkg/handler"
 )
 
 type Storager interface {
-	SaveLink(shortLink, longLink string) error
-	GetByID(string) (string, error)
-	GetAll() map[string]string
+	SaveLink(ctx context.Context, shortLink, longLink, userId string) error
+	SaveBatchLink(ctx context.Context, batch []ElemBatch, userId string) error
+	GetByID(ctx context.Context, id string) (string, error)
+	GetAll(ctx context.Context) map[string]UserURL
+	NewUserID(ctx context.Context) string
+	UserIdIsExist(ctx context.Context, userID string) bool //Проверка что такой User Id выдавался
+	GetUserUrls(ctx context.Context, userID string) []PairURL
+	Ping() bool
+	Close()
 }
 
-type MemoryRep struct {
-	db              map[string]string
-	fileStoragePath string
+type StoreConfig struct {
+	BaseURL         string
+	DBDNS           string
+	FilestoragePath string
 }
 
-//Инициализация
-func NewMemoryRep(fileStoragePath string) *MemoryRep {
-	rep := &MemoryRep{
-		db:              make(map[string]string),
-		fileStoragePath: fileStoragePath,
+type PairURL struct {
+	ShortURL    string `json:"short_url,omitempty" db:"short_url"`
+	OriginalURL string `json:"original_url,omitempty" db:"origin_url"`
+}
+
+type UserURL struct {
+	OriginURL string `json:"originUrl"`
+	UserId    string `json:"userId"`
+}
+
+type ElemBatch struct {
+	CoreId    string `json:"correlation_id"`
+	OriginURL string `json:"original_url"`
+	ShortURL  string `json:"short_url"`
+}
+
+func ConfigurateStorage(c *StoreConfig) Storager {
+	postgreDB, err := NewStoreDB(c)
+	if err != nil || postgreDB.Ping() == false {
+		memoryDB := NewMemoryRep(c.FilestoragePath, c.BaseURL)
+		return memoryDB
 	}
-	//Если заполнен путь к файлу то читаем сохраненные URL
-	if len(fileStoragePath) > 0 {
-		err := rep.ReadRepoFromFile()
-		if err != nil {
-			fmt.Printf("Ошибка чтения файла %s \n", err)
-		}
-	}
-	return rep
-}
-
-func (m MemoryRep) GetAll() map[string]string {
-	return m.db
-}
-
-func (m MemoryRep) SaveLink(shortURL, longURL string) error {
-	_, ok := m.db[shortURL]
-	if !ok {
-		m.db[shortURL] = longURL
-		err := m.WriteRepoFromFile() //При сохранении нового URL запишем в файл
-		if err != nil {
-			return errors.New(fmt.Sprintf("Ошибка записи в файл: %s", err))
-		}
-	}
-	return nil
-}
-
-func (m MemoryRep) GetByID(id string) (string, error) {
-	val, ok := m.db[id]
-	if !ok {
-		return "", errors.New("not found")
-	}
-	return val, nil
+	return postgreDB
 }
 
 //Функция которая принимает в качестве аргумента именно интерфейс
-func AddToCollection(m Storager, longURL string) (s string, err error) {
+func AddToCollection(ctx context.Context, m Storager, longURL, userID string) (s string, err error) {
 	shortURL := generateIdentify(longURL)
-	return shortURL, m.SaveLink(shortURL, longURL)
+	return shortURL, m.SaveLink(ctx, shortURL, longURL, userID)
+}
+
+func AddToCollectionBatch(ctx context.Context, m Storager, batch []ElemBatch, userID string) error {
+	for ind, el := range batch {
+		batch[ind].ShortURL = generateIdentify(el.OriginURL)
+	}
+	return m.SaveBatchLink(ctx, batch, userID)
 }
 
 func generateIdentify(s string) string {
@@ -81,54 +80,13 @@ func generateIdentify(s string) string {
 	return res
 }
 
-//Сохраняем Rep в файл
-func (m MemoryRep) WriteRepoFromFile() error {
-	if len(m.fileStoragePath) == 0 {
-		return nil
-	}
-	//каждый раз перезаписываем файл
-	file, err := os.OpenFile(m.fileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+func generateUserID() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
 	if err != nil {
-		return err
+		fmt.Printf("Не удалось сформировать идентификатор пользователя: %v\n", err)
+		return ""
 	}
-	defer file.Close()
-	writer := bufio.NewWriter(file)
-	data, err := json.Marshal(m.db)
-	if err != nil {
-		panic(err)
-	}
-	data = append(data, '\n')
-	if _, err := writer.Write(data); err != nil {
-		return err
-	}
-	// записываем буфер в файл
-	if err = writer.Flush(); err != nil {
-		return err
-	}
-	return nil
-}
-
-//Читаем данные из файла
-func (m *MemoryRep) ReadRepoFromFile() error {
-	if len(m.fileStoragePath) == 0 {
-		return nil
-	}
-	file, err := os.OpenFile(m.fileStoragePath, os.O_RDONLY|os.O_CREATE, 0777)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	//reader := bufio.NewReader(file)
-	//data, err := reader.ReadBytes()
-	scanner := bufio.NewScanner(file)
-	scanner.Scan()
-	data := scanner.Bytes()
-
-	if data != nil {
-		err = json.Unmarshal(data, &m.db)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	id := hex.EncodeToString(b)
+	return id
 }
