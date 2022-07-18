@@ -61,9 +61,11 @@ func TestHandler_addLink(t *testing.T) {
 	configHandler := &Config{host, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
 
+	ch := make(chan string, 100)
+
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -155,9 +157,11 @@ func TestHandler_Ping(t *testing.T) {
 	configHandler := &Config{host, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
 
+	ch := make(chan string, 100)
+
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -194,9 +198,11 @@ func TestHandler_getLinkByID(t *testing.T) {
 	configHandler := &Config{host, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
 
+	ch := make(chan string, 100)
+
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -274,9 +280,11 @@ func TestHandler_GetShorten(t *testing.T) {
 	configHandler := &Config{host, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
 
+	ch := make(chan string, 100)
+
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -350,9 +358,11 @@ func TestHandler_GetUserUrls(t *testing.T) {
 	configHandler := &Config{host, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
 
+	ch := make(chan string, 100)
+
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -423,9 +433,11 @@ func TestHandler_GetShortenBatch(t *testing.T) {
 	configHandler := &Config{host, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
 
+	ch := make(chan string, 100)
+
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -462,9 +474,11 @@ func TestHandler_PrintAll(t *testing.T) {
 	configHandler := &Config{host, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
 
+	ch := make(chan string, 100)
+
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
