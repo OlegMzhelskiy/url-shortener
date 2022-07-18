@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 	"url-shortener/cmd/server"
 	"url-shortener/pkg/handler"
 	"url-shortener/storage"
@@ -54,13 +56,19 @@ func main() {
 		baseURL += "/"
 	}
 
-	var handl *handler.Handler
+	ch := make(chan string, 100)
+
+	var h *handler.Handler
 	configHandler := &handler.Config{baseURL, dbDSN}
 	configStore := &storage.StoreConfig{baseURL, dbDSN, storagePath}
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = handler.NewHandler(store, configHandler)
+	h = handler.NewHandler(store, ch, configHandler)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go runThreadDeleteURL(ctx, ch, store, 5)
 
 	//postgreDB, err := storage.NewStoreDB(configStore)
 	//if err != nil || postgreDB.Ping() == false {
@@ -71,7 +79,7 @@ func main() {
 	//	handl = handler.NewHandler(postgreDB, configHandler)
 	//}
 
-	router := handl.NewRouter()
+	router := h.NewRouter()
 
 	fmt.Printf("Host: %s\n", host)
 	//defer strg.WriteRepoFromFile() //Запишем в файл по завершении работы сервера
@@ -100,10 +108,41 @@ func Configurate() {
 
 }
 
-//func getStorageDB(storagePath, baseUrl string) *storage.Storager{
-//storageDB, err := storage.NewStoreDB(dbDSN)
-//if err != nil || storageDB.Ping() == false {
-//	storageDB := storage.NewMemoryRep(storagePath, baseUrl)
-//}
-//	return storageDB
-//}
+func runThreadDeleteURL(ctx context.Context, ch chan string, store storage.Storager, intervalMin int) {
+	dur := time.Duration(intervalMin) * time.Minute
+	//ticker := time.NewTicker(dur)
+	var masID []string
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case str, ok := <-ch:
+			if ok {
+				masID = append(masID, str)
+			} else {
+				if len(masID) > 0 {
+					deleteURLs(ctx, store, masID, dur)
+				}
+				//if len(masID) > 0 {
+				//	deleteURLs(ctx, h, masID, dur)
+				//	masID = []string{} //обнуляем слайс
+				//	time.Sleep(dur)
+			}
+		default:
+			if len(masID) > 0 {
+				deleteURLs(ctx, store, masID, dur)
+			}
+			//if len(masID) > 0 {
+			//	deleteURLs(ctx, h, masID, dur)
+			//	masID = []string{} //обнуляем слайс
+			//	time.Sleep(dur)
+			//}
+		}
+	}
+}
+
+func deleteURLs(ctx context.Context, store storage.Storager, masID []string, dur time.Duration) {
+	store.DeleteURLs(ctx, masID)
+	masID = []string{} //обнуляем слайс
+	time.Sleep(dur)
+}

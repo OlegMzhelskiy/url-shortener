@@ -7,7 +7,6 @@ import (
 	"fmt"
 	_ "github.com/jackc/pgx"
 	"github.com/jmoiron/sqlx"
-	"log"
 	"time"
 	//_ "github.com/lib/pq"
 	//"database/sql"
@@ -15,12 +14,21 @@ import (
 
 var (
 	ErrDBConnection = errors.New("you haven`t opened the database connection")
+	ErrURLDeleted   = errors.New("item has been deleted")
 )
 
 type StoreDB struct {
-	db         *sqlx.DB
-	config     *StoreConfig
-	insertStmt *sql.Stmt
+	db          *sqlx.DB
+	config      *StoreConfig
+	insertStmt  *sql.Stmt
+	makeDelStmt *sql.Stmt
+}
+
+type RowTabURL struct {
+	ShortURL    string `db:"short_url"`
+	OriginalURL string `db:"origin_url"`
+	UserID      string `db:"user_id"`
+	Deleted     bool   `db:"deleted"`
 }
 
 func NewStoreDB(config *StoreConfig) (*StoreDB, error) {
@@ -33,9 +41,12 @@ func NewStoreDB(config *StoreConfig) (*StoreDB, error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS urls(
 		origin_url TEXT UNIQUE NOT NULL,
 		short_url TEXT NOT NULL,
-		user_id TEXT NOT NULL);
-		CREATE TABLE IF NOT EXISTS users_token(
+		user_id TEXT NOT NULL,
+        deleted boolean NOT NULL DEFAULT false);
+		CREATE TABLE IF NOT EXISTS users_token(		
 		user_id TEXT UNIQUE NOT NULL);`)
+	//id SERIAL PRIMARY KEY
+	//userId INTEGER REFERENCES users_token (id),
 
 	if err != nil {
 		fmt.Println(err)
@@ -48,8 +59,9 @@ func NewStoreDB(config *StoreConfig) (*StoreDB, error) {
 	db.SetConnMaxLifetime(time.Minute * 2)
 
 	insertStmt, _ := db.Prepare("INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)")
+	makeDelStmt, _ := db.Prepare("UPDATE urls SET deleted = true WHERE short_url = $1")
 
-	return &StoreDB{db, config, insertStmt}, nil
+	return &StoreDB{db, config, insertStmt, makeDelStmt}, nil
 }
 
 func (store *StoreDB) Close() {
@@ -68,22 +80,23 @@ func (store *StoreDB) Ping() bool {
 
 func (store StoreDB) GetAll(ctx context.Context) map[string]UserURL {
 	urls := make(map[string]UserURL)
-	rows, err := store.db.QueryContext(ctx, "SELECT user_id, origin_url, short_url FROM urls")
+	rows, err := store.db.QueryContext(ctx, "SELECT user_id, origin_url, short_url, deleted FROM urls")
 
 	if err == nil {
 		defer rows.Close()
 
 		for rows.Next() {
 			var (
-				us string
-				or string
-				sh string
+				us  string
+				or  string
+				sh  string
+				del bool
 			)
-			err = rows.Scan(&us, &or, &sh)
+			err = rows.Scan(&us, &or, &sh, &del)
 			if err != nil {
 				return urls
 			}
-			urls[sh] = UserURL{or, us}
+			urls[sh] = UserURL{or, us, del}
 		}
 		err = rows.Err()
 		if err != nil {
@@ -119,12 +132,7 @@ func (store StoreDB) SaveBatchLink(ctx context.Context, batch []ElemBatch, userI
 	if err != nil {
 		return err
 	}
-
 	stmt := tx.StmtContext(ctx, store.insertStmt)
-	//stmt, err := tx.Prepare("INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)")
-	//if err != nil {
-	//	return err
-	//}
 	defer stmt.Close()
 
 	for _, v := range batch {
@@ -134,15 +142,14 @@ func (store StoreDB) SaveBatchLink(ctx context.Context, batch []ElemBatch, userI
 		}
 		if _, err = stmt.Exec(userId, v.OriginURL, v.ShortURL); err != nil {
 			if err = tx.Rollback(); err != nil {
-				log.Fatalf("update drivers: unable to rollback: %v", err)
+				err = fmt.Errorf("update drivers: unable to rollback: %w", err)
 			}
 			return err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Fatalf("update drivers: unable to commit: %v", err)
-		return err
+		return fmt.Errorf("update drivers: unable to commit: %w", err)
 	}
 	return nil
 }
@@ -151,14 +158,18 @@ func (store StoreDB) GetByID(ctx context.Context, id string) (string, error) {
 	if store.db == nil {
 		return "", ErrDBConnection //errors.New("you haven`t opened the database connection")
 	}
-	var originURL string
-	//err := store.db.QueryRowContext(ctx, "SELECT origin_url FROM urls WHERE short_url = $1 LIMIT 1", id).Scan(&originUrl)
-	err := store.db.GetContext(ctx, &originURL, "SELECT origin_url FROM urls WHERE short_url = $1 LIMIT 1", id)
-
+	//del := ""
+	//orig := ""
+	//err := store.db.QueryRowContext(ctx, "SELECT origin_url, deleted FROM urls WHERE short_url = $1 LIMIT 1", id).Scan(&orig, &del)
+	var row RowTabURL
+	err := store.db.GetContext(ctx, &row, "SELECT * FROM urls WHERE short_url = $1 LIMIT 1", id)
 	if err != nil { //sql.ErrNoRows
 		return "", err
 	}
-	return originURL, nil
+	if row.Deleted {
+		return "", ErrURLDeleted
+	}
+	return row.OriginalURL, nil
 }
 
 func (store *StoreDB) NewUserID(ctx context.Context) string {
@@ -185,7 +196,7 @@ func (store StoreDB) UserIdIsExist(ctx context.Context, UserID string) bool {
 	return rows.Next()
 }
 
-func (store StoreDB) GetUserUrls(ctx context.Context, UserID string) []PairURL {
+func (store StoreDB) GetUserURLs(ctx context.Context, UserID string) []PairURL {
 	var urls []PairURL
 
 	//rows, err := store.db.QueryContext(ctx, "SELECT origin_url, short_url FROM urls WHERE userId = $1", UserId)
@@ -216,4 +227,50 @@ func (store StoreDB) GetUserUrls(ctx context.Context, UserID string) []PairURL {
 		fmt.Println("Error exec query: " + err.Error())
 	}
 	return urls
+}
+
+func (store StoreDB) GetUserMapURLs(ctx context.Context, UserID string) map[string]string {
+	urls := make(map[string]string)
+	originURL := ""
+	shortURL := ""
+	rows, err := store.db.QueryContext(ctx, "SELECT origin_url, short_url FROM urls WHERE user_id = $1", UserID)
+	if err != nil {
+		fmt.Println("Error exec query: " + err.Error())
+		return nil
+	}
+	for rows.Next() {
+		err := rows.Scan(&originURL, &shortURL)
+		if err != nil {
+			fmt.Println("Error scan row: " + err.Error())
+			return nil
+		}
+		urls[shortURL] = originURL
+	}
+	return urls
+}
+
+func (store StoreDB) DeleteURLs(ctx context.Context, masID []string) error {
+	if store.db == nil {
+		return ErrDBConnection
+	}
+	tx, err := store.db.Begin()
+	if err != nil {
+		return err
+	}
+	stmt := tx.StmtContext(ctx, store.makeDelStmt)
+	defer stmt.Close()
+
+	for _, val := range masID {
+		if _, err = stmt.Exec(val); err != nil {
+			if err = tx.Rollback(); err != nil {
+				err = fmt.Errorf("update drivers: unable to rollback: %w", err)
+			}
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("update drivers: unable to commit: %w", err)
+	}
+	return nil
 }

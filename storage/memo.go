@@ -57,7 +57,7 @@ func (m MemoryRep) GetAll(ctx context.Context) map[string]UserURL {
 func (m MemoryRep) SaveLink(ctx context.Context, shortURL, longURL, userID string) error {
 	_, ok := m.db[shortURL]
 	if !ok {
-		usURL := UserURL{longURL, userID}
+		usURL := UserURL{longURL, userID, false}
 		m.db[shortURL] = usURL
 
 		//err := m.WriteRepoFromFile() //При сохранении нового URL запишем в файл
@@ -193,15 +193,35 @@ func (m *MemoryRep) UserIdIsExist(ctx context.Context, userID string) bool {
 	return m.usersId[userID] > 0
 }
 
-func (m MemoryRep) GetUserUrls(ctx context.Context, userID string) []PairURL {
+func (m MemoryRep) GetUserURLs(ctx context.Context, userID string) []PairURL {
 	masUrls := make([]PairURL, 0)
 	for key, val := range m.db {
 		if val.UserId == userID {
-			newPair := PairURL{m.baseUrl + key, val.OriginURL}
+			newPair := PairURL{ShortURL: m.baseUrl + key, OriginalURL: val.OriginURL}
 			masUrls = append(masUrls, newPair)
 		}
 	}
 	return masUrls
+}
+
+func (m MemoryRep) GetUserMapURLs(ctx context.Context, userID string) map[string]string {
+	urls := make(map[string]string)
+	for key, val := range m.db {
+		if val.UserId == userID {
+			urls[key] = val.OriginURL
+		}
+	}
+	return urls
+}
+
+func (m MemoryRep) DeleteURLs(ctx context.Context, masID []string) error {
+	for _, id := range masID {
+		el := m.db[id]
+		if el.Deleted == false {
+			m.db[id] = UserURL{el.OriginURL, el.UserId, true}
+		}
+	}
+	return nil
 }
 
 func (m MemoryRep) Ping() bool {

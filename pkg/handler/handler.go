@@ -25,10 +25,11 @@ import (
 var secretkey = []byte("It is a secret key")
 
 type Handler struct {
-	storage storage.Storager
-	host    string
-	dbDSN   string
-	timeout time.Duration
+	storage    storage.Storager
+	host       string
+	dbDSN      string
+	timeout    time.Duration
+	chanDelURL chan string
 	//config *Config
 }
 
@@ -47,12 +48,13 @@ type gzipWriter struct {
 }
 
 //func NewHandler(s storage.Storager, host string) *Handler {
-func NewHandler(s storage.Storager, config *Config) *Handler {
+func NewHandler(s storage.Storager, ch chan string, config *Config) *Handler {
 	return &Handler{
-		storage: s,
-		host:    config.Host,
-		dbDSN:   config.DBDSN,
-		timeout: 5,
+		storage:    s,
+		host:       config.Host,
+		dbDSN:      config.DBDSN,
+		timeout:    5,
+		chanDelURL: ch,
 	}
 }
 
@@ -76,6 +78,7 @@ func (h *Handler) NewRouter() *gin.Engine {
 		apiGroup.POST("/shorten", h.GetShorten)
 		apiGroup.GET("/user/urls", h.GetUserUrls)
 		apiGroup.POST("/shorten/batch", h.GetShortenBatch)
+		apiGroup.DELETE("/user/urls", h.deleteURL)
 	}
 	return router
 }
@@ -132,6 +135,10 @@ func (h *Handler) getLinkByID(c *gin.Context) {
 
 	longURL, err := h.storage.GetByID(ctx, id)
 	if err != nil {
+		if err == storage.ErrURLDeleted {
+			c.Status(http.StatusGone)
+			return
+		}
 		//http.Error(c.Writer, err.Error(), http.StatusNotFound)
 		c.String(http.StatusNotFound, err.Error())
 		return
@@ -150,13 +157,13 @@ func (h *Handler) GetShorten(c *gin.Context) {
 		return
 	}
 	if len(body) == 0 {
-		http.Error(c.Writer, "The query must contain a short URL", http.StatusBadRequest)
+		http.Error(c.Writer, "the query must contain a short URL", http.StatusBadRequest)
 		return
 	}
 
 	var value Link
 	if err := json.Unmarshal(body, &value); err != nil {
-		http.Error(c.Writer, "Error: unmarshal body ", http.StatusInternalServerError) //panic(err)
+		http.Error(c.Writer, "error: unmarshal body ", http.StatusInternalServerError) //panic(err)
 	}
 
 	userId, ex := c.Get("userId")
@@ -197,7 +204,7 @@ func isUniqueViolationError(err error) bool {
 }
 
 func (h *Handler) getEmptyID(c *gin.Context) {
-	http.Error(c.Writer, "The query parameter id is missing", http.StatusBadRequest)
+	http.Error(c.Writer, "the query parameter id is missing", http.StatusBadRequest)
 	return
 }
 
@@ -263,7 +270,7 @@ func (h *Handler) GetUserUrls(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
 	defer cancel()
 
-	masURLs := h.storage.GetUserUrls(ctx, userId.(string))
+	masURLs := h.storage.GetUserURLs(ctx, userId.(string))
 	if len(masURLs) == 0 {
 		c.String(http.StatusNoContent, "")
 		return
@@ -318,6 +325,47 @@ func (h *Handler) Ping(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusOK)
+}
+
+func (h *Handler) deleteURL(c *gin.Context) {
+	body, err := io.ReadAll(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(c.Writer, "the query must contain a short URL", http.StatusBadRequest)
+		return
+	}
+	var mas []string //var mas Link
+	if err := json.Unmarshal(body, &mas); err != nil {
+		http.Error(c.Writer, "error: unmarshal body ", http.StatusInternalServerError) //panic(err)
+	}
+
+	userId, ex := c.Get("userId")
+	if !ex {
+		http.Error(c.Writer, "cookies doesn't content user id", http.StatusNoContent)
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
+	defer cancel()
+
+	//получаем все ссылки пользователя и проверяем полученные в запросе на соответствие
+	userURLs := h.storage.GetUserMapURLs(ctx, userId.(string))
+	for _, el := range mas {
+		_, ok := userURLs[el]
+		if !ok {
+			http.Error(c.Writer, el+" is no exist or belongs to another user", http.StatusBadRequest)
+			return
+		}
+		h.chanDelURL <- el
+	}
+
+	//h.storage.deleteURL(ctx, mas)
+
+	c.Status(http.StatusAccepted)
+	return
 }
 
 func (h *Handler) cookiesHandle() gin.HandlerFunc {

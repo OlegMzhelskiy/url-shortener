@@ -17,7 +17,9 @@ type Storager interface {
 	GetAll(ctx context.Context) map[string]UserURL
 	NewUserID(ctx context.Context) string
 	UserIdIsExist(ctx context.Context, userID string) bool //Проверка что такой User Id выдавался
-	GetUserUrls(ctx context.Context, userID string) []PairURL
+	GetUserURLs(ctx context.Context, userID string) []PairURL
+	GetUserMapURLs(ctx context.Context, UserID string) map[string]string
+	DeleteURLs(ctx context.Context, masID []string) error
 	Ping() bool
 	Close()
 }
@@ -36,6 +38,7 @@ type PairURL struct {
 type UserURL struct {
 	OriginURL string `json:"originUrl"`
 	UserId    string `json:"userId"`
+	Deleted   bool   `json:"deleted"`
 }
 
 type ElemBatch struct {
