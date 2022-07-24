@@ -101,7 +101,6 @@ func deleteURLs(ctx context.Context, store storage.Storager, masID []string, dur
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	masID = []string{} //обнуляем слайс
 	time.Sleep(dur)
 }
 
@@ -131,11 +130,13 @@ func DeleteUserArrayURL(ctx context.Context, ch chan *storage.UserArrayURL, stor
 			} else {
 				if len(masID) > 0 {
 					deleteURLs(ctx, store, masID, dur)
+					masID = []string{} //обнуляем слайс
 				}
 			}
 		default:
 			if len(masID) > 0 {
 				deleteURLs(ctx, store, masID, dur)
+				masID = []string{} //обнуляем слайс
 			}
 		}
 	}
