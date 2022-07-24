@@ -28,7 +28,7 @@ var batch = []elemBatch{
 }
 
 var cookie = &http.Cookie{
-	Name:  "userId",
+	Name:  "userID",
 	Value: "270cc75709f72a3b3457d838fcc4c5a4.d9aedd6479de522652e585ddb308c2ce3842db212ed2be5584e6c9e6d7fc076f",
 }
 
@@ -402,8 +402,9 @@ func TestHandler_GetUserUrls(t *testing.T) {
 		},
 		{name: "GET /api/user/urls",
 			want: response{
-				code:    200,
-				body:    `[{"short_url":"http://http://localhost:8080//ghafjfgeb","original_url":"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/"},{"short_url":"http://http://localhost:8080//badbgeicic","original_url":"https://habr.com/ru/company/intel/blog/275709/"}]`,
+				code: 200,
+				body: `[{"short_url":"http://http://localhost:8080//ghafjfgeb","original_url":"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/"},{"short_url":"http://http://localhost:8080//badbgeicic","original_url":"https://habr.com/ru/company/intel/blog/275709/"}]`,
+				//body:    "[{\"short_url\":\"http://http://localhost:8080//ghafjfgeb\",\"original_url\":\"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/\"},{\"short_url\":\"http://http://localhost:8080//badbgeicic\",\"original_url\":\"https://habr.com/ru/company/intel/blog/275709/\"}]",
 				headers: map[string]string{
 					//	"Content-Type": "application/json; charset=utf-8",
 				},
@@ -626,7 +627,9 @@ func testRequestCookie(t *testing.T, tt testCase, router *gin.Engine, pCookie *h
 	}
 	w := httptest.NewRecorder()
 
-	request.AddCookie(pCookie)
+	if pCookie != nil {
+		request.AddCookie(pCookie)
+	}
 
 	// запускаем сервер
 	router.ServeHTTP(w, request)
@@ -660,10 +663,10 @@ func testRequestCookie(t *testing.T, tt testCase, router *gin.Engine, pCookie *h
 	cooStr := w.Header().Get("Set-Cookie")
 	mas := strings.Split(cooStr, ";")
 	for _, elmas := range mas {
-		if strings.HasPrefix(elmas, "userId=") {
+		if strings.HasPrefix(elmas, "userID=") {
 			pc := strings.Split(elmas, "=")
 			newCookie := &http.Cookie{
-				Name:  "userId",
+				Name:  "userID",
 				Value: pc[1],
 			}
 			return newCookie

@@ -23,7 +23,7 @@ func (m MemoryRep) Close() {
 	}
 }
 
-func NewMemoryRep(fileStoragePath, baseUrl string) *MemoryRep {
+func NewMemoryRep(fileStoragePath, baseURL string) *MemoryRep {
 	var errOpen error
 	var file *os.File
 
@@ -35,7 +35,7 @@ func NewMemoryRep(fileStoragePath, baseUrl string) *MemoryRep {
 		db:              make(map[string]UserURL),
 		fileStoragePath: fileStoragePath,
 		usersID:         make(map[string]int),
-		baseURL:         baseUrl,
+		baseURL:         baseURL,
 		file:            file,
 	}
 
@@ -135,13 +135,6 @@ func (m MemoryRep) WriteRepoFromFile() error {
 	if m.file == nil {
 		return nil
 	}
-	//каждый раз перезаписываем файл
-	//file, err := os.OpenFile(m.fileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
-	//if err != nil {
-	//	return err
-	//}
-	//defer file.Close()
-
 	data, err := json.Marshal(m.db)
 	if err != nil {
 		return err
@@ -184,7 +177,7 @@ func (m *MemoryRep) NewUserID(ctx context.Context) string {
 	//return base64.StdEncoding.EncodeToString(b) //
 }
 
-func (m *MemoryRep) UserIdIsExist(ctx context.Context, userID string) bool {
+func (m *MemoryRep) UserIDIsExist(ctx context.Context, userID string) bool {
 	return m.usersID[userID] > 0
 }
 

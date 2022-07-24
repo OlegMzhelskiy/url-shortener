@@ -16,7 +16,7 @@ type Storager interface {
 	GetByID(ctx context.Context, id string) (string, error)
 	GetAll(ctx context.Context) map[string]UserURL
 	NewUserID(ctx context.Context) string
-	UserIdIsExist(ctx context.Context, userID string) bool //Проверка что такой User Id выдавался
+	UserIDIsExist(ctx context.Context, userID string) bool //Проверка что такой User Id выдавался
 	GetUserURLs(ctx context.Context, userID string) ([]PairURL, error)
 	GetUserMapURLs(ctx context.Context, UserID string) (map[string]string, error)
 	DeleteURLs(ctx context.Context, masID []string) error

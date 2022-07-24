@@ -188,9 +188,9 @@ func (store *StoreDB) NewUserID(ctx context.Context) string {
 	return userID
 }
 
-func (store StoreDB) UserIdIsExist(ctx context.Context, UserID string) bool {
+func (store StoreDB) UserIDIsExist(ctx context.Context, UserID string) bool {
 	rows, err := store.db.QueryContext(ctx, "SELECT user_id FROM users_token WHERE user_id = $1", UserID)
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return false
 	}
 	defer rows.Close()
@@ -211,7 +211,7 @@ func (store StoreDB) GetUserMapURLs(ctx context.Context, UserID string) (map[str
 	originURL := ""
 	shortURL := ""
 	rows, err := store.db.QueryContext(ctx, "SELECT origin_url, short_url FROM urls WHERE user_id = $1", UserID)
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return nil, fmt.Errorf("Error exec query: " + err.Error())
 	}
 	for rows.Next() {
