@@ -25,11 +25,12 @@ import (
 var secretkey = []byte("It is a secret key")
 
 type Handler struct {
-	storage    storage.Storager
-	host       string
-	dbDSN      string
-	timeout    time.Duration
-	chanDelURL chan string
+	storage storage.Storager
+	host    string
+	dbDSN   string
+	timeout time.Duration
+	//chanDelURL chan string
+	chanDelURL chan *storage.UserArrayURL
 	//config *Config
 }
 
@@ -48,7 +49,7 @@ type gzipWriter struct {
 }
 
 //func NewHandler(s storage.Storager, host string) *Handler {
-func NewHandler(s storage.Storager, ch chan string, config *Config) *Handler {
+func NewHandler(s storage.Storager, ch chan *storage.UserArrayURL, config *Config) *Handler {
 	return &Handler{
 		storage:    s,
 		host:       config.Host,
@@ -270,7 +271,11 @@ func (h *Handler) GetUserUrls(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
 	defer cancel()
 
-	masURLs := h.storage.GetUserURLs(ctx, userId.(string))
+	masURLs, err := h.storage.GetUserURLs(ctx, userId.(string))
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	if len(masURLs) == 0 {
 		c.String(http.StatusNoContent, "")
 		return
@@ -348,21 +353,35 @@ func (h *Handler) deleteURL(c *gin.Context) {
 		http.Error(c.Writer, "cookies doesn't content user id", http.StatusNoContent)
 		return
 	}
-	ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
-	defer cancel()
-
-	//получаем все ссылки пользователя и проверяем полученные в запросе на соответствие
-	userURLs := h.storage.GetUserMapURLs(ctx, userId.(string))
-	for _, el := range mas {
-		_, ok := userURLs[el]
-		if !ok {
-			http.Error(c.Writer, el+" is no exist or belongs to another user", http.StatusBadRequest)
-			return
-		}
-		h.chanDelURL <- el
+	strUserID, ok := userId.(string)
+	if !ok {
+		http.Error(c.Writer, "user id has a wrong value", http.StatusNoContent)
+		return
 	}
 
-	//h.storage.deleteURL(ctx, mas)
+	//ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
+	//defer cancel()
+	//
+	////получаем все ссылки пользователя и проверяем полученные в запросе на соответствие
+	//userURLs, err := h.storage.GetUserMapURLs(ctx, userId.(string))
+	//if err != nil {
+	//	c.String(http.StatusInternalServerError, err.Error())
+	//}
+	//for _, el := range mas {
+	//	_, ok := userURLs[el]
+	//	if !ok {
+	//		http.Error(c.Writer, el+" is no exist or belongs to another user", http.StatusBadRequest)
+	//		return
+	//	}
+	//	h.chanDelURL <- el
+	//}
+
+	//Отправляем на обработку
+	arr := storage.UserArrayURL{
+		ArrayURL: mas,
+		UserID:   strUserID,
+	}
+	h.chanDelURL <- &arr
 
 	c.Status(http.StatusAccepted)
 	return

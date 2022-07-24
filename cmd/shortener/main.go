@@ -56,7 +56,8 @@ func main() {
 		baseURL += "/"
 	}
 
-	ch := make(chan string, 100)
+	//ch := make(chan string, 100)
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	var h *handler.Handler
 	configHandler := &handler.Config{baseURL, dbDSN}
@@ -68,16 +69,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go runThreadDeleteURL(ctx, ch, store, 5)
-
-	//postgreDB, err := storage.NewStoreDB(configStore)
-	//if err != nil || postgreDB.Ping() == false {
-	//	memoryDB := storage.NewMemoryRep(storagePath, baseUrl)
-	//	handl = handler.NewHandler(memoryDB, configHandler)
-	//} else {
-	//	defer postgreDB.Close()
-	//	handl = handler.NewHandler(postgreDB, configHandler)
-	//}
+	go DeleteUserArrayURL(ctx, ch, store, 5)
 
 	router := h.NewRouter()
 
@@ -104,10 +96,6 @@ func getVarValue(flagValue, envVarName, defValue string) string {
 	return varVal
 }
 
-func Configurate() {
-
-}
-
 func runThreadDeleteURL(ctx context.Context, ch chan string, store storage.Storager, intervalMin int) {
 	dur := time.Duration(intervalMin) * time.Minute
 	//ticker := time.NewTicker(dur)
@@ -123,20 +111,11 @@ func runThreadDeleteURL(ctx context.Context, ch chan string, store storage.Stora
 				if len(masID) > 0 {
 					deleteURLs(ctx, store, masID, dur)
 				}
-				//if len(masID) > 0 {
-				//	deleteURLs(ctx, h, masID, dur)
-				//	masID = []string{} //обнуляем слайс
-				//	time.Sleep(dur)
 			}
 		default:
 			if len(masID) > 0 {
 				deleteURLs(ctx, store, masID, dur)
 			}
-			//if len(masID) > 0 {
-			//	deleteURLs(ctx, h, masID, dur)
-			//	masID = []string{} //обнуляем слайс
-			//	time.Sleep(dur)
-			//}
 		}
 	}
 }
@@ -145,4 +124,40 @@ func deleteURLs(ctx context.Context, store storage.Storager, masID []string, dur
 	store.DeleteURLs(ctx, masID)
 	masID = []string{} //обнуляем слайс
 	time.Sleep(dur)
+}
+
+func DeleteUserArrayURL(ctx context.Context, ch chan *storage.UserArrayURL, store storage.Storager, intervalMin int) {
+	dur := time.Duration(intervalMin) * time.Minute
+	//ticker := time.NewTicker(dur)
+	var masID []string
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case arr, ok := <-ch:
+			if ok {
+				//получаем все ссылки пользователя и проверяем полученные в запросе на соответствие
+				userURLs, err := store.GetUserMapURLs(ctx, arr.UserID)
+				if err != nil {
+					continue
+				}
+				for _, el := range arr.ArrayURL {
+					_, ok := userURLs[el]
+					if !ok {
+						fmt.Printf("%s is no exist or belongs to another user", el)
+						continue
+					}
+				}
+				masID = append(masID, arr.ArrayURL...)
+			} else {
+				if len(masID) > 0 {
+					deleteURLs(ctx, store, masID, dur)
+				}
+			}
+		default:
+			if len(masID) > 0 {
+				deleteURLs(ctx, store, masID, dur)
+			}
+		}
+	}
 }

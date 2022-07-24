@@ -193,7 +193,7 @@ func (m *MemoryRep) UserIdIsExist(ctx context.Context, userID string) bool {
 	return m.usersId[userID] > 0
 }
 
-func (m MemoryRep) GetUserURLs(ctx context.Context, userID string) []PairURL {
+func (m MemoryRep) GetUserURLs(ctx context.Context, userID string) ([]PairURL, error) {
 	masUrls := make([]PairURL, 0)
 	for key, val := range m.db {
 		if val.UserId == userID {
@@ -201,17 +201,17 @@ func (m MemoryRep) GetUserURLs(ctx context.Context, userID string) []PairURL {
 			masUrls = append(masUrls, newPair)
 		}
 	}
-	return masUrls
+	return masUrls, nil
 }
 
-func (m MemoryRep) GetUserMapURLs(ctx context.Context, userID string) map[string]string {
+func (m MemoryRep) GetUserMapURLs(ctx context.Context, userID string) (map[string]string, error) {
 	urls := make(map[string]string)
 	for key, val := range m.db {
 		if val.UserId == userID {
 			urls[key] = val.OriginURL
 		}
 	}
-	return urls
+	return urls, nil
 }
 
 func (m MemoryRep) DeleteURLs(ctx context.Context, masID []string) error {
