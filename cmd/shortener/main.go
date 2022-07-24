@@ -60,8 +60,8 @@ func main() {
 	ch := make(chan *storage.UserArrayURL, 100)
 
 	var h *handler.Handler
-	configHandler := &handler.Config{baseURL, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, storagePath}
+	configHandler := &handler.Config{Host: baseURL, DBDSN: dbDSN}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: storagePath}
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
@@ -96,32 +96,11 @@ func getVarValue(flagValue, envVarName, defValue string) string {
 	return varVal
 }
 
-func runThreadDeleteURL(ctx context.Context, ch chan string, store storage.Storager, intervalMin int) {
-	dur := time.Duration(intervalMin) * time.Minute
-	//ticker := time.NewTicker(dur)
-	var masID []string
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case str, ok := <-ch:
-			if ok {
-				masID = append(masID, str)
-			} else {
-				if len(masID) > 0 {
-					deleteURLs(ctx, store, masID, dur)
-				}
-			}
-		default:
-			if len(masID) > 0 {
-				deleteURLs(ctx, store, masID, dur)
-			}
-		}
-	}
-}
-
 func deleteURLs(ctx context.Context, store storage.Storager, masID []string, dur time.Duration) {
-	store.DeleteURLs(ctx, masID)
+	err := store.DeleteURLs(ctx, masID)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	masID = []string{} //обнуляем слайс
 	time.Sleep(dur)
 }
@@ -144,7 +123,7 @@ func DeleteUserArrayURL(ctx context.Context, ch chan *storage.UserArrayURL, stor
 				for _, el := range arr.ArrayURL {
 					_, ok := userURLs[el]
 					if !ok {
-						fmt.Printf("%s is no exist or belongs to another user", el)
+						fmt.Printf("%s is no exist or belongs to another user\n", el)
 						continue
 					}
 				}

@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 	"io"
 	"net/http"
 	"strings"
@@ -206,7 +205,6 @@ func isUniqueViolationError(err error) bool {
 
 func (h *Handler) getEmptyID(c *gin.Context) {
 	http.Error(c.Writer, "the query parameter id is missing", http.StatusBadRequest)
-	return
 }
 
 func (h *Handler) PrintAll(c *gin.Context) {
@@ -382,9 +380,7 @@ func (h *Handler) deleteURL(c *gin.Context) {
 		UserID:   strUserID,
 	}
 	h.chanDelURL <- &arr
-
 	c.Status(http.StatusAccepted)
-	return
 }
 
 func (h *Handler) cookiesHandle() gin.HandlerFunc {

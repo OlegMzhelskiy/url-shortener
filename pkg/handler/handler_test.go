@@ -45,8 +45,8 @@ type response struct {
 }
 
 type elemBatch struct {
-	Id  string `json:"correlation_id"`
-	Url string `json:"original_url"`
+	ID  string `json:"correlation_id"`
+	URL string `json:"original_url"`
 }
 
 type testCase struct {
@@ -59,7 +59,7 @@ func TestHandler_addLink(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
 
 	ch := make(chan *storage.UserArrayURL, 100)
 
@@ -155,7 +155,7 @@ func TestHandler_Ping(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
 
 	ch := make(chan *storage.UserArrayURL, 100)
 
@@ -196,7 +196,7 @@ func TestHandler_getLinkByID(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
 
 	ch := make(chan *storage.UserArrayURL, 100)
 
@@ -278,7 +278,7 @@ func TestHandler_GetShorten(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
 
 	ch := make(chan *storage.UserArrayURL, 100)
 
@@ -356,7 +356,7 @@ func TestHandler_GetUserUrls(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
 
 	ch := make(chan *storage.UserArrayURL, 100)
 
@@ -431,7 +431,7 @@ func TestHandler_GetShortenBatch(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
 
 	//ch := make(chan string, 100)
 	ch := make(chan *storage.UserArrayURL, 100)
@@ -473,7 +473,7 @@ func TestHandler_PrintAll(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
 
 	ch := make(chan *storage.UserArrayURL, 100)
 

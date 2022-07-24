@@ -12,8 +12,8 @@ import (
 type MemoryRep struct {
 	db              map[string]UserURL
 	fileStoragePath string
-	usersId         map[string]int
-	baseUrl         string
+	usersID         map[string]int
+	baseURL         string
 	file            *os.File
 }
 
@@ -34,8 +34,8 @@ func NewMemoryRep(fileStoragePath, baseUrl string) *MemoryRep {
 	rep := &MemoryRep{
 		db:              make(map[string]UserURL),
 		fileStoragePath: fileStoragePath,
-		usersId:         make(map[string]int),
-		baseUrl:         baseUrl,
+		usersID:         make(map[string]int),
+		baseURL:         baseUrl,
 		file:            file,
 	}
 
@@ -65,7 +65,7 @@ func (m MemoryRep) SaveLink(ctx context.Context, shortURL, longURL, userID strin
 		err := m.WriteElementFromFile(elem)
 
 		if err != nil {
-			return errors.New(fmt.Sprintf("Ошибка записи в файл: %s", err))
+			return fmt.Errorf("error write a file: %s", err)
 		}
 	}
 	return nil
@@ -150,6 +150,7 @@ func (m MemoryRep) WriteRepoFromFile() error {
 
 	writer := bufio.NewWriter(m.file)
 	if _, err := writer.Write(data); err != nil {
+		return fmt.Errorf("error write a file: %s", err)
 	}
 	// записываем буфер в файл
 	if err = writer.Flush(); err != nil {
@@ -163,12 +164,6 @@ func (m *MemoryRep) ReadRepoFromFile() error {
 	if m.file == nil {
 		return nil
 	}
-	//file, err := os.OpenFile(m.fileStoragePath, os.O_RDONLY|os.O_CREATE, 0777)
-	//if err != nil {
-	//	return err
-	//}
-	//defer file.Close()
-
 	scanner := bufio.NewScanner(m.file)
 	scanner.Scan()
 	data := scanner.Bytes()
@@ -184,20 +179,20 @@ func (m *MemoryRep) ReadRepoFromFile() error {
 
 func (m *MemoryRep) NewUserID(ctx context.Context) string {
 	id := generateUserID()
-	m.usersId[id]++
+	m.usersID[id]++
 	return id
 	//return base64.StdEncoding.EncodeToString(b) //
 }
 
 func (m *MemoryRep) UserIdIsExist(ctx context.Context, userID string) bool {
-	return m.usersId[userID] > 0
+	return m.usersID[userID] > 0
 }
 
 func (m MemoryRep) GetUserURLs(ctx context.Context, userID string) ([]PairURL, error) {
 	masUrls := make([]PairURL, 0)
 	for key, val := range m.db {
-		if val.UserId == userID {
-			newPair := PairURL{ShortURL: m.baseUrl + key, OriginalURL: val.OriginURL}
+		if val.UserID == userID {
+			newPair := PairURL{ShortURL: m.baseURL + key, OriginalURL: val.OriginURL}
 			masUrls = append(masUrls, newPair)
 		}
 	}
@@ -207,7 +202,7 @@ func (m MemoryRep) GetUserURLs(ctx context.Context, userID string) ([]PairURL, e
 func (m MemoryRep) GetUserMapURLs(ctx context.Context, userID string) (map[string]string, error) {
 	urls := make(map[string]string)
 	for key, val := range m.db {
-		if val.UserId == userID {
+		if val.UserID == userID {
 			urls[key] = val.OriginURL
 		}
 	}
@@ -217,8 +212,8 @@ func (m MemoryRep) GetUserMapURLs(ctx context.Context, userID string) (map[strin
 func (m MemoryRep) DeleteURLs(ctx context.Context, masID []string) error {
 	for _, id := range masID {
 		el := m.db[id]
-		if el.Deleted == false {
-			m.db[id] = UserURL{el.OriginURL, el.UserId, true}
+		if !el.Deleted {
+			m.db[id] = UserURL{el.OriginURL, el.UserID, true}
 		}
 	}
 	return nil

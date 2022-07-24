@@ -113,15 +113,14 @@ func (store StoreDB) GetAll(ctx context.Context) map[string]UserURL {
 	return urls
 }
 
-func (store StoreDB) SaveLink(ctx context.Context, shortURL, longURL, userId string) error {
+func (store StoreDB) SaveLink(ctx context.Context, shortURL, longURL, userID string) error {
 	if store.db == nil {
 		return ErrDBConnection //errors.New("you haven`t opened the database connection")
 	}
 	//url, _ := store.GetByID(shortURL)
-
 	//Если записи с таким url нет то добавим
 	//if url == "" {
-	_, err := store.db.ExecContext(ctx, "INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)", userId, longURL, shortURL)
+	_, err := store.db.ExecContext(ctx, "INSERT INTO urls(user_id, origin_url, short_url) VALUES($1,$2,$3)", userID, longURL, shortURL)
 	if err != nil {
 		//return fmt.Errorf(`%w`, err)
 		return err
@@ -129,7 +128,7 @@ func (store StoreDB) SaveLink(ctx context.Context, shortURL, longURL, userId str
 	return nil
 }
 
-func (store StoreDB) SaveBatchLink(ctx context.Context, batch []ElemBatch, userId string) error {
+func (store StoreDB) SaveBatchLink(ctx context.Context, batch []ElemBatch, userID string) error {
 	if store.db == nil {
 		return ErrDBConnection //errors.New("you haven`t opened the database connection")
 	}
@@ -145,7 +144,7 @@ func (store StoreDB) SaveBatchLink(ctx context.Context, batch []ElemBatch, userI
 		if longURL != "" {
 			continue
 		}
-		if _, err = stmt.Exec(userId, v.OriginURL, v.ShortURL); err != nil {
+		if _, err = stmt.Exec(userID, v.OriginURL, v.ShortURL); err != nil {
 			if errRB := tx.Rollback(); errRB != nil {
 				return fmt.Errorf("update drivers: unable to rollback: %w", err)
 			}
