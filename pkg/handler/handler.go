@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 	"io"
 	"net/http"
 	"strings"
@@ -29,6 +28,8 @@ type Handler struct {
 	host    string
 	dbDSN   string
 	timeout time.Duration
+	//chanDelURL chan string
+	chanDelURL chan *storage.UserArrayURL
 	//config *Config
 }
 
@@ -47,12 +48,13 @@ type gzipWriter struct {
 }
 
 //func NewHandler(s storage.Storager, host string) *Handler {
-func NewHandler(s storage.Storager, config *Config) *Handler {
+func NewHandler(s storage.Storager, ch chan *storage.UserArrayURL, config *Config) *Handler {
 	return &Handler{
-		storage: s,
-		host:    config.Host,
-		dbDSN:   config.DBDSN,
-		timeout: 5,
+		storage:    s,
+		host:       config.Host,
+		dbDSN:      config.DBDSN,
+		timeout:    5,
+		chanDelURL: ch,
 	}
 }
 
@@ -76,6 +78,7 @@ func (h *Handler) NewRouter() *gin.Engine {
 		apiGroup.POST("/shorten", h.GetShorten)
 		apiGroup.GET("/user/urls", h.GetUserUrls)
 		apiGroup.POST("/shorten/batch", h.GetShortenBatch)
+		apiGroup.DELETE("/user/urls", h.deleteURL)
 	}
 	return router
 }
@@ -95,7 +98,7 @@ func (h *Handler) addLink(c *gin.Context) {
 		return
 	}
 
-	userId, ex := c.Get("userId")
+	userID, ex := c.Get("userID")
 	if !ex {
 		http.Error(c.Writer, "Отсутствует user id в контексте", http.StatusNoContent)
 		return
@@ -105,7 +108,7 @@ func (h *Handler) addLink(c *gin.Context) {
 	defer cancel()
 
 	statusCode := http.StatusCreated
-	shortURL, err := storage.AddToCollection(ctx, h.storage, string(body), userId.(string))
+	shortURL, err := storage.AddToCollection(ctx, h.storage, string(body), userID.(string))
 	if err != nil {
 		if isUniqueViolationError(err) {
 			statusCode = http.StatusConflict
@@ -132,6 +135,10 @@ func (h *Handler) getLinkByID(c *gin.Context) {
 
 	longURL, err := h.storage.GetByID(ctx, id)
 	if err != nil {
+		if err == storage.ErrURLDeleted {
+			c.Status(http.StatusGone)
+			return
+		}
 		//http.Error(c.Writer, err.Error(), http.StatusNotFound)
 		c.String(http.StatusNotFound, err.Error())
 		return
@@ -150,16 +157,16 @@ func (h *Handler) GetShorten(c *gin.Context) {
 		return
 	}
 	if len(body) == 0 {
-		http.Error(c.Writer, "The query must contain a short URL", http.StatusBadRequest)
+		http.Error(c.Writer, "the query must contain a short URL", http.StatusBadRequest)
 		return
 	}
 
 	var value Link
 	if err := json.Unmarshal(body, &value); err != nil {
-		http.Error(c.Writer, "Error: unmarshal body ", http.StatusInternalServerError) //panic(err)
+		http.Error(c.Writer, "error: unmarshal body ", http.StatusInternalServerError) //panic(err)
 	}
 
-	userId, ex := c.Get("userId")
+	userID, ex := c.Get("userID")
 	if !ex {
 		http.Error(c.Writer, "Отсутствует user id в контексте", http.StatusNoContent)
 		return
@@ -169,7 +176,7 @@ func (h *Handler) GetShorten(c *gin.Context) {
 	defer cancel()
 
 	statusCode := http.StatusCreated
-	shortURL, err := storage.AddToCollection(ctx, h.storage, value.URL, userId.(string))
+	shortURL, err := storage.AddToCollection(ctx, h.storage, value.URL, userID.(string))
 	if err != nil {
 		if isUniqueViolationError(err) {
 			statusCode = http.StatusConflict
@@ -179,8 +186,8 @@ func (h *Handler) GetShorten(c *gin.Context) {
 		}
 	}
 	result := struct {
-		Url string `json:"result"`
-	}{h.host + shortURL}
+		URL string `json:"result"`
+	}{URL: h.host + shortURL}
 	//json.Marshal(result)
 	c.JSON(statusCode, result)
 }
@@ -197,8 +204,7 @@ func isUniqueViolationError(err error) bool {
 }
 
 func (h *Handler) getEmptyID(c *gin.Context) {
-	http.Error(c.Writer, "The query parameter id is missing", http.StatusBadRequest)
-	return
+	http.Error(c.Writer, "the query parameter id is missing", http.StatusBadRequest)
 }
 
 func (h *Handler) PrintAll(c *gin.Context) {
@@ -255,7 +261,7 @@ func gzipHandle() gin.HandlerFunc {
 }
 
 func (h *Handler) GetUserUrls(c *gin.Context) {
-	userId, ex := c.Get("userId")
+	userID, ex := c.Get("userID")
 	if !ex {
 		http.Error(c.Writer, "cookies doesn't content user id", http.StatusNoContent)
 		return
@@ -263,7 +269,11 @@ func (h *Handler) GetUserUrls(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
 	defer cancel()
 
-	masURLs := h.storage.GetUserUrls(ctx, userId.(string))
+	masURLs, err := h.storage.GetUserURLs(ctx, userID.(string))
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	if len(masURLs) == 0 {
 		c.String(http.StatusNoContent, "")
 		return
@@ -289,7 +299,7 @@ func (h *Handler) GetShortenBatch(c *gin.Context) {
 		http.Error(c.Writer, "error: unmarshal body ", http.StatusInternalServerError) //panic(err)
 	}
 
-	userId, ex := c.Get("userId")
+	userID, ex := c.Get("userID")
 	if !ex {
 		http.Error(c.Writer, "cookies doesn't content user id", http.StatusNoContent)
 		return
@@ -298,7 +308,7 @@ func (h *Handler) GetShortenBatch(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
 	defer cancel()
 
-	err = storage.AddToCollectionBatch(ctx, h.storage, batch, userId.(string))
+	err = storage.AddToCollectionBatch(ctx, h.storage, batch, userID.(string))
 
 	//Добавляем хост к идентификатору
 	for ind, el := range batch {
@@ -320,6 +330,59 @@ func (h *Handler) Ping(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+func (h *Handler) deleteURL(c *gin.Context) {
+	body, err := io.ReadAll(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(c.Writer, "the query must contain a short URL", http.StatusBadRequest)
+		return
+	}
+	var mas []string //var mas Link
+	if err := json.Unmarshal(body, &mas); err != nil {
+		http.Error(c.Writer, "error: unmarshal body ", http.StatusInternalServerError) //panic(err)
+	}
+
+	userID, ex := c.Get("userID")
+	if !ex {
+		http.Error(c.Writer, "cookies doesn't content user id", http.StatusNoContent)
+		return
+	}
+	strUserID, ok := userID.(string)
+	if !ok {
+		http.Error(c.Writer, "user id has a wrong value", http.StatusNoContent)
+		return
+	}
+
+	//ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout*time.Second)
+	//defer cancel()
+	//
+	////получаем все ссылки пользователя и проверяем полученные в запросе на соответствие
+	//userURLs, err := h.storage.GetUserMapURLs(ctx, userId.(string))
+	//if err != nil {
+	//	c.String(http.StatusInternalServerError, err.Error())
+	//}
+	//for _, el := range mas {
+	//	_, ok := userURLs[el]
+	//	if !ok {
+	//		http.Error(c.Writer, el+" is no exist or belongs to another user", http.StatusBadRequest)
+	//		return
+	//	}
+	//	h.chanDelURL <- el
+	//}
+
+	//Отправляем на обработку
+	arr := storage.UserArrayURL{
+		ArrayURL: mas,
+		UserID:   strUserID,
+	}
+	h.chanDelURL <- &arr
+	c.Status(http.StatusAccepted)
+}
+
 func (h *Handler) cookiesHandle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cookieUserID := ""
@@ -332,7 +395,7 @@ func (h *Handler) cookiesHandle() gin.HandlerFunc {
 			cookieUserID, userID = h.NewCookieUserID(ctx)
 		} else {
 			//Проверяем полученные куки
-			if !ValidMAC([]byte(userID), []byte(idMAC), secretkey) || !h.storage.UserIdIsExist(ctx, userID) {
+			if !ValidMAC([]byte(userID), []byte(idMAC), secretkey) || !h.storage.UserIDIsExist(ctx, userID) {
 				cookieUserID, userID = h.NewCookieUserID(ctx)
 			}
 		}
@@ -341,15 +404,15 @@ func (h *Handler) cookiesHandle() gin.HandlerFunc {
 			cookieUserID = userID + "." + idMAC
 		}
 
-		c.SetCookie("userId", cookieUserID, 3600, "/", "localhost", false, true)
-		c.Set("userId", userID) //Передаем значение userId через контекст запроса
+		c.SetCookie("userID", cookieUserID, 3600, "/", "localhost", false, true)
+		c.Set("userID", userID) //Передаем значение userID через контекст запроса
 		c.Next()
 	}
 }
 
 func (h *Handler) getUserIDFromCookie(c *gin.Context) (string, string, error) {
 
-	cookieUserID, err := c.Cookie("userId")
+	cookieUserID, err := c.Cookie("userID")
 	if err != nil {
 		return "", "", errors.New("no cookie user id")
 	}
@@ -369,9 +432,9 @@ func (h *Handler) NewCookieUserID(ctx context.Context) (string, string) {
 	hashf := hmac.New(sha256.New, secretkey)
 	hashf.Write([]byte(id))
 	hsum := hex.EncodeToString(hashf.Sum(nil))
-	valueId := id + "." + hsum
+	valueID := id + "." + hsum
 
-	return valueId, id
+	return valueID, id
 }
 
 //Проверка подписи userId

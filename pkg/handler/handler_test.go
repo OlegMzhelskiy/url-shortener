@@ -28,7 +28,7 @@ var batch = []elemBatch{
 }
 
 var cookie = &http.Cookie{
-	Name:  "userId",
+	Name:  "userID",
 	Value: "270cc75709f72a3b3457d838fcc4c5a4.d9aedd6479de522652e585ddb308c2ce3842db212ed2be5584e6c9e6d7fc076f",
 }
 
@@ -45,8 +45,8 @@ type response struct {
 }
 
 type elemBatch struct {
-	Id  string `json:"correlation_id"`
-	Url string `json:"original_url"`
+	ID  string `json:"correlation_id"`
+	URL string `json:"original_url"`
 }
 
 type testCase struct {
@@ -59,11 +59,13 @@ func TestHandler_addLink(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
+
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -153,11 +155,13 @@ func TestHandler_Ping(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
+
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -192,11 +196,13 @@ func TestHandler_getLinkByID(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
+
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -249,7 +255,7 @@ func TestHandler_getLinkByID(t *testing.T) {
 		{name: "GET Empty Request",
 			want: response{
 				code:    400,
-				body:    "The query parameter id is missing\n",
+				body:    "the query parameter id is missing\n",
 				headers: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
 			},
 			args: args{
@@ -272,11 +278,13 @@ func TestHandler_GetShorten(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
+
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -348,11 +356,13 @@ func TestHandler_GetUserUrls(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
+
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -392,8 +402,9 @@ func TestHandler_GetUserUrls(t *testing.T) {
 		},
 		{name: "GET /api/user/urls",
 			want: response{
-				code:    200,
-				body:    `[{"short_url":"http://http://localhost:8080//ghafjfgeb","original_url":"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/"},{"short_url":"http://http://localhost:8080//badbgeicic","original_url":"https://habr.com/ru/company/intel/blog/275709/"}]`,
+				code: 200,
+				body: `[{"short_url":"http://http://localhost:8080//ghafjfgeb","original_url":"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/"},{"short_url":"http://http://localhost:8080//badbgeicic","original_url":"https://habr.com/ru/company/intel/blog/275709/"}]`,
+				//body:    "[{\"short_url\":\"http://http://localhost:8080//ghafjfgeb\",\"original_url\":\"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/\"},{\"short_url\":\"http://http://localhost:8080//badbgeicic\",\"original_url\":\"https://habr.com/ru/company/intel/blog/275709/\"}]",
 				headers: map[string]string{
 					//	"Content-Type": "application/json; charset=utf-8",
 				},
@@ -421,11 +432,14 @@ func TestHandler_GetShortenBatch(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
+
+	//ch := make(chan string, 100)
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -460,11 +474,13 @@ func TestHandler_PrintAll(t *testing.T) {
 
 	var handl *Handler
 	configHandler := &Config{host, dbDSN}
-	configStore := &storage.StoreConfig{baseURL, dbDSN, filePath}
+	configStore := &storage.StoreConfig{BaseURL: baseURL, DBDNS: dbDSN, FilestoragePath: filePath}
+
+	ch := make(chan *storage.UserArrayURL, 100)
 
 	store := storage.ConfigurateStorage(configStore)
 	defer store.Close()
-	handl = NewHandler(store, configHandler)
+	handl = NewHandler(store, ch, configHandler)
 
 	router := handl.NewRouter()
 
@@ -489,7 +505,7 @@ func TestHandler_PrintAll(t *testing.T) {
 		{name: "GET ALL",
 			want: response{
 				code:    200,
-				body:    `{"badbgeicic":{"originUrl":"https://habr.com/ru/company/intel/blog/275709/","userId":"5502d0741bd614878a8815c4930b0686"},"ghafjfgeb":{"originUrl":"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/","userId":"5502d0741bd614878a8815c4930b0686"}}`,
+				body:    `{"badbgeicic":{"originUrl":"https://habr.com/ru/company/intel/blog/275709/","userId":"5502d0741bd614878a8815c4930b0686","deleted":false},"ghafjfgeb":{"originUrl":"https://practicum.yandex.ru/learn/go-developer/courses/9908027e-ac38-4005-a7c9-30f61f5ed23f/sprints/51370/topics/dd5c3680-6603-4f17-957a-6991147bf14c/lessons/e7f410af-7304-4a6e-9c7f-6e109813e16f/","userId":"5502d0741bd614878a8815c4930b0686","deleted":false}}`,
 				headers: map[string]string{"Content-Type": "application/json; charset=utf-8"},
 			},
 			args: args{
@@ -611,7 +627,9 @@ func testRequestCookie(t *testing.T, tt testCase, router *gin.Engine, pCookie *h
 	}
 	w := httptest.NewRecorder()
 
-	request.AddCookie(pCookie)
+	if pCookie != nil {
+		request.AddCookie(pCookie)
+	}
 
 	// запускаем сервер
 	router.ServeHTTP(w, request)
@@ -645,10 +663,10 @@ func testRequestCookie(t *testing.T, tt testCase, router *gin.Engine, pCookie *h
 	cooStr := w.Header().Get("Set-Cookie")
 	mas := strings.Split(cooStr, ";")
 	for _, elmas := range mas {
-		if strings.HasPrefix(elmas, "userId=") {
+		if strings.HasPrefix(elmas, "userID=") {
 			pc := strings.Split(elmas, "=")
 			newCookie := &http.Cookie{
-				Name:  "userId",
+				Name:  "userID",
 				Value: pc[1],
 			}
 			return newCookie
@@ -656,61 +674,6 @@ func testRequestCookie(t *testing.T, tt testCase, router *gin.Engine, pCookie *h
 	}
 	return nil
 }
-
-//func TestHandler_ValidMAC(t *testing.T) {
-//	b := make([]byte, 16)
-//	_, err := rand.Read(b)
-//	if err != nil {
-//		assert.Fail(t, "Не удалось сформировать идентификатор пользователя: %v\n", err)
-//
-//	}
-//	id := hex.EncodeToString(b)
-//
-//	hashf := hmac.New(sha256.New, secretkey)
-//	hashf.Write([]byte(id))
-//	hsum := hex.EncodeToString(hashf.Sum(nil))
-//	assert.Equal(t, ValidMAC([]byte(id), []byte(hsum), secretkey), true)
-//}
-
-//func testRequest(t *testing.T, ts *httptest.Server, method, path string, body *bytes.Buffer) (*http.Response, string) {
-//	req, err := http.NewRequest(method, path, body)
-//	require.NoError(t, err)
-//	//req := httptest.NewRequest(method, path, body)
-//
-//	resp, err := http.DefaultClient.Do(req)
-//	require.NoError(t, err)
-//
-//	respBody, err := ioutil.ReadAll(resp.Body)
-//	require.NoError(t, err)
-//
-//	defer resp.Body.Close()
-//
-//	return resp, string(respBody)
-//}
-
-//func TestHandler_Ping(t *testing.T) {
-//	//var handl *Handler
-//	//configHandler := &Config{host, dbDSN}
-//	//configStore := &storage.StoreConfig{baseUrl, dbDSN, filePath}
-//	//
-//	//store := storage.ConfigurateStorage(configStore)
-//	//defer store.Close()
-//	//handl = NewHandler(store, configHandler)
-//	//router := handl.NewRouter()
-//	//
-//	//t.Run("Ping", func(t *testing.T) {
-//	//	request := httptest.NewRequest("GET", "", bytes.NewBuffer([]byte("")))
-//	//
-//	//	w := httptest.NewRecorder()
-//	//
-//	//	router.ServeHTTP(w, request)
-//	//
-//	//	assert.Equal(t, 200, w.Code)
-//	//})
-//
-//
-//
-//}
 
 // Compress сжимает слайс байт.
 func Compress(data []byte) []byte {
